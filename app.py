@@ -38,6 +38,22 @@ def image_src(key):
 
 HERO_IMG, DOCTOR_IMG = image_src("hero"), image_src("doctor")
 
+
+def local_image(key):
+    for ext in ("jpg", "jpeg", "png", "webp"):
+        path = f"assets/{key}.{ext}"
+        if os.path.exists(path):
+            with open(path, "rb") as f:
+                data = base64.b64encode(f.read()).decode()
+            return f"data:image/{'jpeg' if ext in ('jpg', 'jpeg') else ext};base64,{data}"
+    return None
+
+
+_hero_local = local_image("hero")
+HERO_PHOTO_HTML = (
+    f'<div class="hero-photo" style="background-image:url(\'{_hero_local}\')"></div>' if _hero_local else ""
+)
+
 SVG_SELECT = """<svg viewBox="0 0 160 110" xmlns="http://www.w3.org/2000/svg"><rect width="160" height="110" fill="#e3f6f0"/>
 <circle cx="30" cy="85" r="26" fill="#cdeee3"/><circle cx="138" cy="20" r="22" fill="#d3eefb"/>
 <rect x="50" y="14" width="60" height="82" rx="9" fill="#fff" stroke="#0f8a6e" stroke-width="3"/>
@@ -58,9 +74,27 @@ SVG_RESULT = """<svg viewBox="0 0 160 110" xmlns="http://www.w3.org/2000/svg"><r
 <circle cx="112" cy="36" r="11" fill="#0f8a6e"/><path d="M107 36l4 4 7-8" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>"""
 
 SVG_HERO = """<svg viewBox="0 0 400 360" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%">
-<circle cx="260" cy="170" r="130" fill="rgba(255,255,255,.08)"/><circle cx="260" cy="170" r="90" fill="rgba(255,255,255,.08)"/>
-<path d="M260 235C190 190 170 150 195 120c18-22 50-14 65 8 15-22 47-30 65-8 25 30 5 70-65 115z" fill="#7ff0d0" opacity=".9"/>
-<path d="M150 175h60l12-36 20 72 16-36h70" stroke="#06353f" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>"""
+<circle cx="215" cy="190" r="150" fill="rgba(255,255,255,.10)"/><circle cx="215" cy="190" r="104" fill="rgba(255,255,255,.12)"/>
+<circle cx="60" cy="40" r="5" fill="rgba(255,255,255,.5)"/><circle cx="350" cy="300" r="6" fill="rgba(255,255,255,.4)"/><circle cx="376" cy="150" r="4" fill="rgba(255,255,255,.5)"/><circle cx="30" cy="180" r="4" fill="rgba(255,255,255,.4)"/>
+<path d="M104 360C104 282 148 254 215 254C282 254 326 282 326 360Z" fill="#ffffff"/>
+<path d="M215 254L186 360M215 254L244 360" stroke="#cfe3e8" stroke-width="3" fill="none"/>
+<path d="M190 257L215 302L240 257Z" fill="#34d3b0"/>
+<rect x="203" y="226" width="24" height="36" rx="11" fill="#e8b48f"/>
+<circle cx="215" cy="188" r="48" fill="#f2c9a5"/>
+<path d="M166 186C162 138 200 126 226 130C254 134 268 158 264 188C252 168 234 160 213 162C192 164 175 172 166 186Z" fill="#2b3a4a"/>
+<circle cx="199" cy="196" r="3.6" fill="#2b3a4a"/><circle cx="231" cy="196" r="3.6" fill="#2b3a4a"/>
+<path d="M202 212Q215 225 228 212" stroke="#b5694a" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+<path d="M178 262C156 302 172 334 205 334" stroke="#1a9bb0" stroke-width="6" fill="none" stroke-linecap="round"/>
+<path d="M252 262C274 302 258 334 225 334" stroke="#1a9bb0" stroke-width="6" fill="none" stroke-linecap="round"/>
+<circle cx="215" cy="334" r="10" fill="#0f6e56" stroke="#7ff0d0" stroke-width="3"/>
+<rect x="268" y="302" width="28" height="28" rx="7" fill="#e1f7f0"/><path d="M282 308v16M274 316h16" stroke="#0f8a6e" stroke-width="4" stroke-linecap="round"/>
+<rect x="34" y="62" width="104" height="66" rx="16" fill="#ffffff"/>
+<path d="M48 104h16l7-18 10 34 8-16h20" stroke="#e5677f" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<g transform="rotate(35 334 92)"><rect x="312" y="80" width="44" height="24" rx="12" fill="#ffffff"/><rect x="312" y="80" width="22" height="24" rx="12" fill="#7ff0d0"/></g>
+<path d="M340 196v24M328 208h24" stroke="#7ff0d0" stroke-width="6" stroke-linecap="round"/>
+<path d="M52 232l28-11 28 11v28c0 19-15 32-28 38-13-6-28-19-28-38z" fill="#ffffff"/>
+<path d="M66 258l9 9 18-20" stroke="#0f8a6e" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>"""
 
 # ------------------------------------------------------------------
 # STYLE
@@ -72,7 +106,8 @@ st.markdown(
 html, body, [class*="css"] { font-family: 'Poppins', sans-serif; }
 .stApp { background: linear-gradient(180deg, #f2faf8 0%, #eef4fb 100%); color: #1b2733; }
 .block-container { max-width: 1240px; padding-top: 1.4rem; padding-bottom: 2rem; }
-header[data-testid="stHeader"] { background: transparent; }
+header[data-testid="stHeader"] { background: rgba(255,255,255,.88); backdrop-filter: blur(8px); border-bottom: 1px solid #e2ecf0; }
+header[data-testid="stHeader"] *, [data-testid="stToolbar"] * { color: #0b2e3f !important; fill: #0b2e3f !important; }
 h1, h2, h3, h4 { color: #0b2e3f !important; letter-spacing: -0.4px; }
 [data-testid="stMain"] p, [data-testid="stMain"] label, [data-testid="stMain"] li, .main p, .main label { color: #1b2733; }
 [data-testid="stMain"] input, .main input { background: transparent !important; color: #0b2e3f !important;
@@ -393,7 +428,7 @@ if page == "Home":
           </div>
           <div class="hero-art">
             {SVG_HERO}
-            <div class="hero-photo" style="background-image:url('{HERO_IMG}')"></div>
+            {HERO_PHOTO_HTML}
           </div>
         </div>
         """,
