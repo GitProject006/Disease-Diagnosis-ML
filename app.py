@@ -1,7 +1,7 @@
 import base64
 import os
+import re
 
-import altair as alt
 import joblib
 import numpy as np
 import pandas as pd
@@ -17,13 +17,12 @@ st.set_page_config(
 # ------------------------------------------------------------------
 # IMAGES
 # Your own photos: create an "assets" folder in the repo and add
-# hero.jpg, doctor.jpg, lab.jpg. They are used automatically.
-# Otherwise the web photos below are used (illustrations always show).
+# hero.jpg and doctor.jpg. They are used automatically.
+# Otherwise the web photos below are used.
 # ------------------------------------------------------------------
 IMAGE_URLS = {
     "hero": "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=1200&q=80",
     "doctor": "https://images.unsplash.com/photo-1559757148-5c350d0d3c56?auto=format&fit=crop&w=900&q=80",
-    "lab": "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&w=900&q=80",
 }
 
 
@@ -37,9 +36,8 @@ def image_src(key):
     return IMAGE_URLS[key]
 
 
-HERO_IMG, DOCTOR_IMG, LAB_IMG = image_src("hero"), image_src("doctor"), image_src("lab")
+HERO_IMG, DOCTOR_IMG = image_src("hero"), image_src("doctor")
 
-# Illustrations drawn in SVG so they always load
 SVG_SELECT = """<svg viewBox="0 0 160 110" xmlns="http://www.w3.org/2000/svg"><rect width="160" height="110" fill="#e3f6f0"/>
 <circle cx="30" cy="85" r="26" fill="#cdeee3"/><circle cx="138" cy="20" r="22" fill="#d3eefb"/>
 <rect x="50" y="14" width="60" height="82" rx="9" fill="#fff" stroke="#0f8a6e" stroke-width="3"/>
@@ -76,15 +74,21 @@ html, body, [class*="css"] { font-family: 'Poppins', sans-serif; }
 .block-container { max-width: 1240px; padding-top: 1.4rem; padding-bottom: 2rem; }
 header[data-testid="stHeader"] { background: transparent; }
 h1, h2, h3, h4 { color: #0b2e3f !important; letter-spacing: -0.4px; }
+[data-testid="stMain"] p, [data-testid="stMain"] label, [data-testid="stMain"] li, .main p, .main label { color: #1b2733; }
+[data-testid="stMain"] input, .main input { background: #ffffff !important; color: #1b2733 !important; }
+div[data-baseweb="input"] > div { background: #ffffff !important; border-radius: 14px; border: 1px solid #cfe3e8; }
 
 section[data-testid="stSidebar"] { background: linear-gradient(190deg, #06353f 0%, #0a5560 55%, #0f6e56 100%); }
 section[data-testid="stSidebar"] * { color: #e7fbf6 !important; }
-section[data-testid="stSidebar"] hr { border-color: rgba(255,255,255,.18); }
 section[data-testid="stSidebar"] div[role="radiogroup"] label {
-    background: rgba(255,255,255,.07); border-radius: 12px; padding: 9px 14px; margin-bottom: 7px;
-    transition: all .25s ease; width: 100%;
+    background: rgba(255,255,255,.07); border-radius: 12px; padding: 10px 16px; margin-bottom: 7px;
+    transition: all .25s ease; width: 100%; cursor: pointer;
 }
+section[data-testid="stSidebar"] div[role="radiogroup"] label > div:first-child { display: none; }
 section[data-testid="stSidebar"] div[role="radiogroup"] label:hover { background: rgba(255,255,255,.18); transform: translateX(4px); }
+section[data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) {
+    background: linear-gradient(100deg, #34d3b0, #1a9bb0); box-shadow: 0 6px 16px rgba(0,0,0,.22);
+}
 .brand { display:flex; align-items:center; gap:12px; padding: 8px 0 18px 0; }
 .brand-logo { width:46px; height:46px; border-radius:14px; display:flex; align-items:center; justify-content:center;
     font-size:24px; background: linear-gradient(135deg, #34d3b0, #1a9bb0); box-shadow: 0 6px 18px rgba(0,0,0,.25); }
@@ -112,7 +116,7 @@ section[data-testid="stSidebar"] div[role="radiogroup"] label:hover { background
 @keyframes floaty { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
 
 .section-title { font-size: 26px; font-weight: 700; margin: 26px 0 4px 0; color:#0b2e3f; }
-.section-sub { color:#62768a; font-size: 14px; margin-bottom: 14px; }
+.section-sub { color:#62768a !important; font-size: 14px; margin-bottom: 14px; }
 
 .step { background:#fff; border-radius: 20px; overflow:hidden; border:1px solid #e2ecf0; height:100%;
     box-shadow: 0 8px 22px rgba(16,60,80,.06); transition: all .25s ease; }
@@ -121,29 +125,28 @@ section[data-testid="stSidebar"] div[role="radiogroup"] label:hover { background
 .step .body { padding: 16px 20px 20px 20px; }
 .step .no { color:#0f8a6e; font-size: 12px; font-weight: 700; letter-spacing: 1.5px; }
 .step h4 { margin: 4px 0 6px 0; font-size: 17px; }
-.step p { color:#62768a; font-size: 13px; line-height: 1.7; margin:0; }
+.step p { color:#62768a !important; font-size: 13px; line-height: 1.7; margin:0; }
 
-.photo-strip { display:grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 8px; }
-.photo-card { position:relative; border-radius: 22px; overflow:hidden; min-height: 210px; color:#fff;
+.photo-card { position:relative; border-radius: 22px; overflow:hidden; min-height: 230px; color:#fff; margin-top: 22px;
     background: linear-gradient(120deg, #0a5560, #0f8a6e); background-size: cover; background-position: center;
     box-shadow: 0 14px 30px rgba(6,53,63,.2); }
-.photo-card .in { position:absolute; inset:0; padding: 26px 28px; display:flex; flex-direction:column; justify-content:flex-end;
+.photo-card .in { position:absolute; inset:0; padding: 28px 32px; display:flex; flex-direction:column; justify-content:flex-end;
     background: linear-gradient(0deg, rgba(6,53,63,.88), rgba(6,53,63,.1) 75%); }
-.photo-card h3 { color:#fff !important; margin:0 0 4px 0; font-size: 20px; }
-.photo-card p { margin:0; font-size: 13px; color:#d3efe9; }
+.photo-card h3 { color:#fff !important; margin:0 0 4px 0; font-size: 22px; }
+.photo-card p { margin:0; font-size: 14px; color:#d3efe9 !important; }
 
 .banner { border-radius: 22px; padding: 28px 32px; color:#fff; margin-bottom: 20px;
     background: linear-gradient(100deg, rgba(6,53,63,.92), rgba(15,110,86,.82)), var(--img);
     background-size: cover; background-position: center; box-shadow: 0 16px 36px rgba(6,53,63,.22); }
 .banner h1 { color:#fff !important; margin:0 0 6px 0; font-size: 32px; }
-.banner p { color:#d3efe9; margin:0; font-size: 14px; }
+.banner p { color:#d3efe9 !important; margin:0; font-size: 14px; }
 
 .panel { background:#fff; border:1px solid #e2ecf0; border-radius: 20px; padding: 20px 24px;
     box-shadow: 0 8px 22px rgba(16,60,80,.06); }
 .panel h4 { margin: 0 0 8px 0; }
 .chip { display:inline-block; background: linear-gradient(135deg, #d9f7ee, #d3eefb); color:#0a4d57; font-size: 12.5px;
     font-weight: 600; padding: 6px 14px; border-radius: 20px; margin: 4px 6px 4px 0; border: 1px solid #bfe6dc; }
-.muted { color:#7d92a1; font-size: 13px; }
+.muted { color:#7d92a1 !important; font-size: 13px; }
 
 .result { border-radius: 22px; padding: 26px 30px; color:#fff; display:flex; align-items:center; gap: 28px;
     background: linear-gradient(120deg, #0a5560, #0f8a6e); box-shadow: 0 18px 38px rgba(15,110,86,.3); }
@@ -162,37 +165,129 @@ section[data-testid="stSidebar"] div[role="radiogroup"] label:hover { background
 .bar-val { font-size: 13px; font-weight: 700; color:#37566a; text-align:right; }
 .next { background:#fff; border:1px solid #e2ecf0; border-radius: 16px; padding: 16px 18px; height:100%; font-size: 13px; color:#4b6272; line-height:1.6; }
 .next b { display:block; color:#0b2e3f; font-size: 14px; margin-bottom: 4px; }
-.notice { background:#fff7e6; border:1px solid #f2d9a3; color:#7a5200; border-radius: 14px; padding: 12px 16px; font-size: 13px; margin-top: 18px; }
+.notice { background:#fff7e6; border:1px solid #f2d9a3; color:#7a5200 !important; border-radius: 14px; padding: 12px 16px; font-size: 13px; margin-top: 18px; }
 
-.dgrid { display:grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; }
-.dcard { background:#fff; border:1px solid #e2ecf0; border-radius: 16px; padding: 14px 16px; display:flex; align-items:center; gap: 12px;
-    transition: all .2s ease; box-shadow: 0 6px 16px rgba(16,60,80,.05); }
-.dcard:hover { transform: translateY(-3px); box-shadow: 0 12px 26px rgba(16,60,80,.12); }
-.dbadge { width: 40px; height: 40px; border-radius: 12px; display:flex; align-items:center; justify-content:center;
-    color:#fff; font-weight: 700; font-size: 16px; flex-shrink: 0; }
-.dname { font-size: 13.5px; font-weight: 600; color:#0b2e3f; line-height: 1.3; }
+.tgrid { display:grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin: 8px 0 6px 0; }
+.tgrid .next b span { color:#0f8a6e; margin-right: 6px; }
 
-.stat { background:#fff; border-radius: 18px; padding: 16px 20px; border:1px solid #e2ecf0; box-shadow: 0 8px 22px rgba(16,60,80,.06);
-    position: relative; overflow:hidden; }
-.stat::before { content:""; position:absolute; left:0; top:0; width:100%; height:4px; background: var(--c); }
-.stat .num { font-size: 26px; font-weight: 800; color:#0b2e3f; }
-.stat .lbl { font-size: 12px; color:#6a7f8c; font-weight: 500; }
+[data-testid="stExpander"] { background:#fff; border:1px solid #e2ecf0 !important; border-radius: 16px; box-shadow: 0 6px 16px rgba(16,60,80,.05);
+    transition: box-shadow .2s ease; margin-bottom: 8px; }
+[data-testid="stExpander"]:hover { box-shadow: 0 12px 26px rgba(16,60,80,.12); }
+[data-testid="stExpander"] summary p { color:#0b2e3f !important; font-weight: 600; font-size: 14.5px; }
+.dtitle { font-size: 12px; font-weight: 700; letter-spacing: 1.2px; color:#0f8a6e !important; margin: 12px 0 4px 0; }
+.dtext { font-size: 13.5px; line-height: 1.7; color:#3d5260 !important; margin: 0; }
+.dlist { margin: 4px 0 0 0; padding-left: 18px; font-size: 13.5px; line-height: 1.8; color:#3d5260; }
 
-.footer { text-align:center; color:#8aa0ad; font-size: 12px; padding: 30px 0 4px 0; }
+.footer { text-align:center; color:#8aa0ad !important; font-size: 12px; padding: 30px 0 4px 0; }
 
 div.stButton > button { background: linear-gradient(100deg, #0f8a6e, #1a9bb0); color:#fff; border:0; border-radius: 14px;
     padding: .7rem 1.2rem; font-weight: 600; font-size: 15px; transition: all .2s ease; box-shadow: 0 8px 20px rgba(15,138,110,.3); }
 div.stButton > button:hover { transform: translateY(-2px); filter: brightness(1.08); color:#fff; }
 div[data-baseweb="select"] > div { border-radius: 14px; border-color: #cfe3e8; background:#fff; }
-.stTabs [data-baseweb="tab"] { font-weight: 600; }
-@media (max-width: 900px) { .hero { grid-template-columns: 1fr; } .hero-art { display:none; } .photo-strip { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .hero { grid-template-columns: 1fr; } .hero-art { display:none; } }
 </style>
 """,
     unsafe_allow_html=True,
 )
 
 PALETTE = ["#0f8a6e", "#1a9bb0", "#7c6cf0", "#e9a23b", "#e5677f"]
-NAV = ["🏠  Home", "🔍  Check symptoms", "🧬  Diseases", "📑  Project report"]
+NAV = ["🏠  Home", "🔍  Check symptoms", "🧬  Diseases", "ℹ️  About"]
+
+# ------------------------------------------------------------------
+# DISEASE INFORMATION (general awareness only)
+# ------------------------------------------------------------------
+DISEASE_INFO = [
+    (("fungal",), "A skin infection caused by fungi, often showing up as itchy, red or scaly patches.",
+     ["Keep the affected area clean and dry", "Avoid sharing towels and clothing", "See a doctor for antifungal treatment"]),
+    (("allergy",), "An overreaction of the immune system to things like pollen, dust or certain foods.",
+     ["Avoid known triggers", "Keep living spaces clean and dust free", "Ask a doctor about antihistamines"]),
+    (("gerd",), "Stomach acid flows back into the food pipe, causing heartburn and discomfort.",
+     ["Eat smaller meals", "Avoid spicy and fatty food, especially at night", "Do not lie down right after eating"]),
+    (("cholestasis",), "Bile flow from the liver is reduced or blocked, which can cause itching and yellowing of the skin.",
+     ["Avoid alcohol", "Eat a light, low-fat diet", "Get liver tests done by a doctor"]),
+    (("drugreaction",), "An unwanted body response to a medicine, from mild rashes to serious reactions.",
+     ["Stop a medicine only on medical advice", "Tell your doctor which medicines you take", "Get urgent care for swelling or breathing trouble"]),
+    (("pepticulcer",), "Open sores in the lining of the stomach or upper intestine, often causing burning stomach pain.",
+     ["Avoid alcohol and smoking", "Eat regular, small meals", "See a doctor for testing and treatment"]),
+    (("aids",), "A late stage of HIV infection in which the immune system is badly weakened.",
+     ["Seek specialist medical care", "Take prescribed treatment regularly", "Practise safe sex and never share needles"]),
+    (("diabetes",), "Blood sugar stays too high because the body cannot use insulin properly.",
+     ["Monitor blood sugar regularly", "Follow a balanced, low-sugar diet", "Exercise and take medicines as prescribed"]),
+    (("gastroenteritis",), "Inflammation of the stomach and intestines, usually from infection, causing vomiting and loose stools.",
+     ["Drink plenty of fluids or ORS", "Eat light, bland food", "See a doctor if it is severe or lasts long"]),
+    (("asthma",), "A long-term condition where the airways narrow and swell, causing wheezing and breathlessness.",
+     ["Avoid triggers like dust, smoke and cold air", "Keep your inhaler with you", "Follow your doctor's asthma plan"]),
+    (("hypertension",), "Blood pressure stays higher than normal, which strains the heart and blood vessels over time.",
+     ["Reduce salt in your food", "Exercise and manage stress", "Check blood pressure regularly"]),
+    (("migraine",), "A recurring headache, often one-sided and throbbing, that may come with nausea and light sensitivity.",
+     ["Rest in a quiet, dark room", "Note and avoid your triggers", "Stay hydrated and sleep regularly"]),
+    (("cervical",), "Age-related wear of the neck bones and discs, causing neck pain and stiffness.",
+     ["Do gentle neck exercises", "Maintain good posture", "Avoid long periods looking down at screens"]),
+    (("paralysis",), "Loss of movement in part of the body, here linked to bleeding in the brain. This is an emergency.",
+     ["Call emergency services immediately", "Do not delay treatment", "Follow rehabilitation advice afterwards"]),
+    (("jaundice",), "Yellowing of the skin and eyes caused by a build-up of bilirubin, often from liver problems.",
+     ["Drink plenty of safe water", "Avoid alcohol and oily food", "See a doctor to find the cause"]),
+    (("malaria",), "A mosquito-borne infection causing high fever with chills.",
+     ["Sleep under a mosquito net", "Use repellent and cover arms and legs", "Get tested and treated quickly"]),
+    (("chickenpox",), "A contagious viral infection with an itchy, blister-like rash and fever.",
+     ["Avoid scratching the blisters", "Rest at home to avoid spreading it", "Consult a doctor, especially for children"]),
+    (("dengue",), "A mosquito-borne viral fever that can cause severe body pain and low platelet counts.",
+     ["Prevent mosquito breeding near your home", "Drink plenty of fluids and rest", "Get blood tests and medical monitoring"]),
+    (("typhoid",), "A bacterial infection spread by contaminated food and water, causing prolonged fever.",
+     ["Drink boiled or purified water", "Eat freshly cooked food", "See a doctor for antibiotics"]),
+    (("alcoholic",), "Liver inflammation caused by heavy alcohol use.",
+     ["Stop drinking alcohol", "Eat nutritious food", "Get medical care and support"]),
+    (("hepatitisa",), "A liver infection caused by the hepatitis A virus, usually spread through contaminated food or water.",
+     ["Wash hands well", "Drink safe water", "Rest and avoid alcohol; a vaccine is available"]),
+    (("hepatitisb",), "A liver infection spread through blood and body fluids.",
+     ["Get vaccinated", "Avoid sharing needles or razors", "Have regular liver check-ups"]),
+    (("hepatitisc",), "A liver infection spread mainly through infected blood.",
+     ["Never share needles", "Use only sterile medical equipment", "See a specialist, as treatment is available"]),
+    (("hepatitisd",), "A liver infection that only occurs in people who already have hepatitis B.",
+     ["Get the hepatitis B vaccine", "Avoid sharing needles", "Follow up regularly with a specialist"]),
+    (("hepatitise",), "A liver infection usually spread through contaminated water.",
+     ["Drink safe water", "Maintain good hygiene", "Rest and see a doctor, especially in pregnancy"]),
+    (("tuberculosis",), "A bacterial infection that mainly affects the lungs, causing a long-lasting cough.",
+     ["Complete the full course of treatment", "Cover your mouth when coughing", "Keep rooms well ventilated"]),
+    (("commoncold",), "A mild viral infection of the nose and throat.",
+     ["Rest and drink warm fluids", "Wash hands often", "See a doctor if it lasts more than 10 days"]),
+    (("pneumonia",), "An infection that inflames the air sacs in the lungs, causing cough, fever and breathing difficulty.",
+     ["Seek medical care promptly", "Rest and drink fluids", "Complete any prescribed antibiotics"]),
+    (("hemmorhoids", "hemorrhoids", "piles"), "Swollen veins in the lower rectum or anus that can cause pain and bleeding.",
+     ["Eat fibre-rich food and drink water", "Avoid straining", "See a doctor if there is bleeding"]),
+    (("heartattack",), "Blood flow to the heart is suddenly blocked. This is a medical emergency.",
+     ["Call emergency services immediately", "Sit down and stay calm until help arrives", "Keep a heart-healthy lifestyle"]),
+    (("varicose",), "Enlarged, twisted veins, most often in the legs.",
+     ["Raise your legs when resting", "Stay active and avoid standing for long", "Ask a doctor about compression stockings"]),
+    (("hypothyroidism",), "The thyroid gland makes too little hormone, slowing the body's metabolism.",
+     ["Take medicine exactly as prescribed", "Get thyroid tests regularly", "Eat a balanced diet"]),
+    (("hyperthyroidism",), "The thyroid gland makes too much hormone, speeding up the body's metabolism.",
+     ["Get regular thyroid tests", "Avoid extra iodine unless advised", "Manage stress and sleep well"]),
+    (("hypoglycemia",), "Blood sugar drops too low, causing shakiness, sweating and confusion.",
+     ["Take a quick sugar source if you are awake and able to swallow", "Eat regular meals", "Seek care if it keeps happening"]),
+    (("osteo",), "Joint cartilage wears down over time, causing pain and stiffness, especially in knees and hips.",
+     ["Do low-impact exercise", "Maintain a healthy weight", "Ask a doctor or physiotherapist for a plan"]),
+    (("arthritis", "arthristis"), "Inflammation of the joints that causes pain, swelling and stiffness.",
+     ["Do gentle exercise", "Use warm compresses", "See a specialist for treatment options"]),
+    (("vertigo",), "A spinning sensation caused by problems in the inner ear or balance system.",
+     ["Change position slowly", "Avoid sudden head movements", "See a doctor if it keeps returning"]),
+    (("acne",), "Blocked hair follicles that lead to pimples, mostly on the face, back and chest.",
+     ["Wash your face gently twice a day", "Do not squeeze pimples", "See a dermatologist if it persists"]),
+    (("urinarytract",), "An infection of the bladder or urinary tract causing burning and frequent urination.",
+     ["Drink plenty of water", "Do not hold urine for long", "See a doctor for treatment"]),
+    (("psoriasis",), "A long-term skin condition that causes thick, scaly patches.",
+     ["Moisturise regularly", "Avoid triggers like stress and harsh soaps", "See a dermatologist"]),
+    (("impetigo",), "A contagious bacterial skin infection with sores and honey-coloured crusts.",
+     ["Keep sores clean and covered", "Do not share towels", "See a doctor for antibiotics"]),
+]
+
+
+def disease_info(name):
+    norm = re.sub(r"[^a-z]", "", str(name).lower())
+    for keys, desc, tips in DISEASE_INFO:
+        if any(k in norm for k in keys):
+            return desc, tips
+    return None, []
 
 
 # ------------------------------------------------------------------
@@ -226,30 +321,21 @@ except Exception as exc:
     st.code(str(exc))
     st.stop()
 
-disease_counts = as_series(bundle.get("disease_counts", {}))
 symptom_counts = as_series(bundle.get("symptom_counts", {}))
-results_df = pd.DataFrame(bundle.get("model_results", []))
-metrics = bundle.get("metrics", {})
-best_params = bundle.get("best_params", {})
 
 
-def bar_chart(series, color, title, top=15):
-    df = series.sort_values(ascending=False).head(top).rename("value").rename_axis("name").reset_index()
-    df["name"] = df["name"].map(pretty)
-    chart = (
-        alt.Chart(df)
-        .mark_bar(cornerRadiusEnd=8, color=color)
-        .encode(
-            x=alt.X("value:Q", title=None),
-            y=alt.Y("name:N", sort="-x", title=None, axis=alt.Axis(labelLimit=220)),
-            tooltip=["name", "value"],
-        )
-        .properties(height=30 * len(df) + 10, title=title)
-        .configure_view(strokeWidth=0)
-        .configure_axis(grid=False, labelFontSize=12)
-        .configure_title(fontSize=16, anchor="start", color="#0b2e3f")
-    )
-    st.altair_chart(chart, use_container_width=True)
+@st.cache_data(show_spinner=False)
+def linked_symptoms():
+    """For each disease, the symptoms the model links to it most strongly."""
+    try:
+        probs = model.predict_proba(np.eye(len(mlb.classes_)))
+        out = {}
+        for j, cls in enumerate(model.classes_):
+            order = np.argsort(probs[:, j])[::-1][:6]
+            out[str(cls)] = [str(mlb.classes_[i]) for i in order if probs[i, j] > 0.02]
+        return out
+    except Exception:
+        return {}
 
 
 def banner(title, sub, img):
@@ -315,16 +401,9 @@ if page == "Home":
         )
 
     st.markdown(
-        f"""
-        <div class="photo-strip">
-          <div class="photo-card" style="background-image:url('{DOCTOR_IMG}')">
-            <div class="in"><h3>Know what to ask your doctor</h3><p>Go to your appointment with a clearer picture of your symptoms.</p></div>
-          </div>
-          <div class="photo-card" style="background-image:url('{LAB_IMG}')">
-            <div class="in"><h3>Built on real case data</h3><p>Predictions come from patterns learned from thousands of recorded cases.</p></div>
-          </div>
-        </div>
-        """,
+        f"""<div class="photo-card" style="background-image:url('{DOCTOR_IMG}')">
+        <div class="in"><h3>Know what to ask your doctor</h3>
+        <p>Go to your appointment with a clearer picture of your symptoms.</p></div></div>""",
         unsafe_allow_html=True,
     )
 
@@ -413,6 +492,16 @@ elif page == "Check symptoms":
                     st.markdown("<br>", unsafe_allow_html=True)
                     st.markdown(f'<div class="panel"><h4>Other possible matches</h4>{rows}</div>', unsafe_allow_html=True)
 
+                desc, tips = disease_info(pred)
+                if desc:
+                    li = "".join(f"<li>{t}</li>" for t in tips)
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    st.markdown(
+                        f'<div class="panel"><h4>About {pretty(pred)}</h4><p class="dtext">{desc}</p>'
+                        f'<div class="dtitle">GENERAL PRECAUTIONS</div><ul class="dlist">{li}</ul></div>',
+                        unsafe_allow_html=True,
+                    )
+
                 st.markdown("<br>", unsafe_allow_html=True)
                 n1, n2, n3 = st.columns(3, gap="medium")
                 n1.markdown('<div class="next"><b>Talk to a doctor</b>Share this list with a healthcare professional for a proper diagnosis.</div>', unsafe_allow_html=True)
@@ -438,106 +527,72 @@ elif page == "Check symptoms":
                 st.code(str(exc))
 
 # ------------------------------------------------------------------
-# DISEASES
+# DISEASES  (click a condition to open its details)
 # ------------------------------------------------------------------
 elif page == "Diseases":
-    banner("Conditions we can recognise", "Browse the conditions covered by the checker.", LAB_IMG)
+    banner("Conditions we can recognise", "Click any condition to see what it is, its common symptoms and general precautions.", HERO_IMG)
     q = st.text_input("Search", placeholder="Search a condition, e.g. diabetes")
     shown = [d for d in diseases if q.lower() in d.lower()] if q else diseases
-    cards = "".join(
-        f'<div class="dcard"><div class="dbadge" style="background:{PALETTE[i % 5]}">{pretty(d)[:1]}</div>'
-        f'<div class="dname">{pretty(d)}</div></div>'
-        for i, d in enumerate(shown)
-    )
-    st.markdown(f'<div class="dgrid">{cards}</div>' if shown else '<p class="muted">No matching condition.</p>', unsafe_allow_html=True)
+
+    if not shown:
+        st.markdown('<p class="muted">No matching condition.</p>', unsafe_allow_html=True)
+    else:
+        links = linked_symptoms()
+        cols = st.columns(3, gap="medium")
+        for i, d in enumerate(shown):
+            with cols[i % 3]:
+                with st.expander(pretty(d)):
+                    desc, tips = disease_info(d)
+                    if desc:
+                        st.markdown(f'<div class="dtitle">WHAT IS IT</div><p class="dtext">{desc}</p>', unsafe_allow_html=True)
+                    sym = links.get(d, [])
+                    if sym:
+                        chips = "".join(f'<span class="chip">{pretty(s)}</span>' for s in sym)
+                        st.markdown(f'<div class="dtitle">SYMPTOMS LINKED BY THE MODEL</div>{chips}', unsafe_allow_html=True)
+                    if tips:
+                        li = "".join(f"<li>{t}</li>" for t in tips)
+                        st.markdown(f'<div class="dtitle">GENERAL PRECAUTIONS</div><ul class="dlist">{li}</ul>', unsafe_allow_html=True)
+                    if not desc and not sym:
+                        st.markdown('<p class="muted">No extra details available.</p>', unsafe_allow_html=True)
 
 # ------------------------------------------------------------------
-# PROJECT REPORT  (techniques required for the lab evaluation)
+# ABOUT
 # ------------------------------------------------------------------
 else:
-    banner("Project report", "Disease Diagnosis: dataset analysis, model comparison and results.", HERO_IMG)
-    t1, t2, t3, t4 = st.tabs(["Overview", "Dataset analysis", "Model comparison", "Tuning and results"])
+    banner("About MediPredict", "A machine-learning project that suggests likely diseases from symptoms.", DOCTOR_IMG)
 
-    with t1:
-        st.markdown("#### Problem statement")
-        st.write("Predict the most likely disease from a set of symptoms, treated as a multi-class classification problem.")
-        st.markdown("#### Approach")
-        pipe = [
-            ("1", "Exploratory data analysis", "Class balance, symptom frequency, duplicates and missing values."),
-            ("2", "Preprocessing", "Symptoms encoded as a binary matrix with a multi-label binarizer."),
-            ("3", "Model training", "Several classification algorithms trained and compared on the same split."),
-            ("4", "Hyper-parameter tuning", "Cross-validated search to improve the best models."),
-            ("5", "Evaluation", "Accuracy, precision, recall and F1 on held-out test data."),
-        ]
-        for col, (n, t, d) in zip(st.columns(5), pipe):
-            col.markdown(f'<div class="next"><b>{n}. {t}</b>{d}</div>', unsafe_allow_html=True)
-        st.markdown("#### Limitations")
-        st.write(
-            "The dataset can contain repeated records and may not represent real patients, "
-            "and the model only predicts diseases present in its training data."
-        )
+    st.markdown("### What is MediPredict?")
+    st.write(
+        "MediPredict is a symptom checker built as a final lab project. You choose the symptoms you "
+        "are experiencing, and a trained classification model suggests the most likely conditions "
+        "along with a match score for each one."
+    )
 
-    with t2:
-        if disease_counts.empty and symptom_counts.empty:
-            st.warning("Dataset counts were not saved in the model bundle.")
-        else:
-            a, b = st.columns(2, gap="large")
-            with a:
-                if not disease_counts.empty:
-                    bar_chart(disease_counts, "#0f8a6e", "Records per disease (top 15)")
-            with b:
-                if not symptom_counts.empty:
-                    bar_chart(symptom_counts, "#7c6cf0", "Most frequent symptoms (top 15)")
-            if not disease_counts.empty:
-                st.dataframe(
-                    disease_counts.rename("Records").rename_axis("Disease").reset_index(),
-                    hide_index=True,
-                    use_container_width=True,
-                )
+    st.markdown("### How it was built")
+    st.markdown(
+        """
+        <div class="tgrid">
+          <div class="next"><b><span>01</span>Data analysis</b>Studied class balance, symptom frequency, duplicates and missing values.</div>
+          <div class="next"><b><span>02</span>Preprocessing</b>Converted each symptom list into a binary matrix the model can read.</div>
+          <div class="next"><b><span>03</span>Model training</b>Trained and compared several classification algorithms on the same data split.</div>
+          <div class="next"><b><span>04</span>Tuning</b>Improved the best models with cross-validated hyper-parameter search.</div>
+          <div class="next"><b><span>05</span>Evaluation</b>Measured accuracy, precision, recall and F1 on unseen test data.</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    with t3:
-        if results_df.empty:
-            st.warning("Model comparison results were not found in the bundle.")
-        else:
-            num_cols = results_df.select_dtypes("number").columns.tolist()
-            st.dataframe(
-                results_df.style.format({c: "{:.4f}" for c in num_cols}).highlight_max(subset=num_cols, color="#c9efe2"),
-                hide_index=True,
-                use_container_width=True,
-            )
-            if "Model" in results_df.columns and num_cols:
-                metric = st.selectbox("Chart metric", num_cols, index=0)
-                best = results_df[metric].max()
-                chart = (
-                    alt.Chart(results_df)
-                    .mark_bar(cornerRadiusTopLeft=8, cornerRadiusTopRight=8)
-                    .encode(
-                        x=alt.X("Model:N", sort="-y", title=None, axis=alt.Axis(labelAngle=-20)),
-                        y=alt.Y(f"{metric}:Q", scale=alt.Scale(domain=[0, 1.05])),
-                        color=alt.condition(alt.datum[metric] == best, alt.value("#0f8a6e"), alt.value("#a9c9d6")),
-                        tooltip=["Model", metric],
-                    )
-                    .properties(height=340)
-                    .configure_view(strokeWidth=0)
-                    .configure_axis(grid=False)
-                )
-                st.altair_chart(chart, use_container_width=True)
+    st.markdown("### Technology")
+    st.markdown(
+        "".join(f'<span class="chip">{t}</span>' for t in ["Python", "Pandas", "NumPy", "Scikit-learn", "Streamlit", "GitHub"]),
+        unsafe_allow_html=True,
+    )
 
-    with t4:
-        st.success(f"Selected final model: {bundle.get('model_name', 'Not specified')}")
-        if best_params:
-            st.markdown("#### Best hyper-parameters")
-            st.json({str(k): (v if isinstance(v, (int, float, str, bool, type(None))) else str(v)) for k, v in best_params.items()})
-        if metrics:
-            st.markdown("#### Final test metrics")
-            cols = st.columns(min(4, len(metrics)))
-            for i, (k, v) in enumerate(metrics.items()):
-                val = f"{float(v):.3f}" if isinstance(v, (int, float, np.number)) else str(v)
-                cols[i % len(cols)].markdown(
-                    f'<div class="stat" style="--c:{PALETTE[i % 5]}"><div class="lbl">{k}</div><div class="num">{val}</div></div>',
-                    unsafe_allow_html=True,
-                )
-        else:
-            st.info("No final metrics were saved in the model bundle.")
+    st.markdown("### Limitations")
+    st.write(
+        "The dataset may contain repeated records and does not represent real patients, and the model can "
+        "only predict conditions present in its training data. Results are suggestions, not a medical diagnosis, "
+        "so please consult a qualified doctor for any health concern."
+    )
 
 st.markdown('<div class="footer">MediPredict · Student project · Not a substitute for professional medical advice</div>', unsafe_allow_html=True)
