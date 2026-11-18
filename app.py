@@ -75,8 +75,24 @@ html, body, [class*="css"] { font-family: 'Poppins', sans-serif; }
 header[data-testid="stHeader"] { background: transparent; }
 h1, h2, h3, h4 { color: #0b2e3f !important; letter-spacing: -0.4px; }
 [data-testid="stMain"] p, [data-testid="stMain"] label, [data-testid="stMain"] li, .main p, .main label { color: #1b2733; }
-[data-testid="stMain"] input, .main input { background: #ffffff !important; color: #1b2733 !important; }
-div[data-baseweb="input"] > div { background: #ffffff !important; border-radius: 14px; border: 1px solid #cfe3e8; }
+[data-testid="stMain"] input, .main input { background: transparent !important; color: #0b2e3f !important;
+    -webkit-text-fill-color: #0b2e3f; font-weight: 500; }
+[data-testid="stMain"] input::placeholder, .main input::placeholder { color: #6f8796 !important;
+    -webkit-text-fill-color: #6f8796 !important; opacity: 1 !important; font-weight: 400; }
+div[data-baseweb="input"] { background: #f4fffb !important; border: 2px solid #34d3b0 !important; border-radius: 14px !important;
+    box-shadow: 0 4px 14px rgba(26,155,176,.12); transition: all .2s ease; }
+div[data-baseweb="input"]:focus-within { border-color: #1a9bb0 !important; box-shadow: 0 0 0 4px rgba(52,211,176,.22); }
+div[data-baseweb="input"] > div, div[data-baseweb="base-input"] { background: transparent !important; border: 0 !important; }
+div[data-baseweb="select"] > div { background: #f4fffb !important; border: 2px solid #34d3b0 !important; border-radius: 14px !important;
+    box-shadow: 0 4px 14px rgba(26,155,176,.12); }
+div[data-baseweb="select"] > div * { background-color: transparent; color: #0b2e3f; }
+div[data-baseweb="select"]:focus-within > div { border-color: #1a9bb0 !important; box-shadow: 0 0 0 4px rgba(52,211,176,.22); }
+div[data-baseweb="select"] svg { fill: #0f8a6e !important; }
+span[data-baseweb="tag"] { background: linear-gradient(135deg, #34d3b0, #1a9bb0) !important; border-radius: 20px !important; }
+span[data-baseweb="tag"] * { color: #ffffff !important; fill: #ffffff !important; }
+div[data-baseweb="popover"] ul, div[data-baseweb="popover"] div[data-baseweb="menu"] { background: #ffffff !important; }
+div[data-baseweb="popover"] li { color: #0b2e3f !important; background: #ffffff !important; }
+div[data-baseweb="popover"] li:hover, div[data-baseweb="popover"] li[aria-selected="true"] { background: #e1f7f0 !important; }
 
 section[data-testid="stSidebar"] { background: linear-gradient(190deg, #06353f 0%, #0a5560 55%, #0f6e56 100%); }
 section[data-testid="stSidebar"] * { color: #e7fbf6 !important; }
@@ -183,7 +199,7 @@ section[data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked)
 div.stButton > button { background: linear-gradient(100deg, #0f8a6e, #1a9bb0); color:#fff; border:0; border-radius: 14px;
     padding: .7rem 1.2rem; font-weight: 600; font-size: 15px; transition: all .2s ease; box-shadow: 0 8px 20px rgba(15,138,110,.3); }
 div.stButton > button:hover { transform: translateY(-2px); filter: brightness(1.08); color:#fff; }
-div[data-baseweb="select"] > div { border-radius: 14px; border-color: #cfe3e8; background:#fff; }
+div.stButton > button, div.stButton > button p, div.stButton > button span { color: #ffffff !important; }
 @media (max-width: 900px) { .hero { grid-template-columns: 1fr; } .hero-art { display:none; } }
 </style>
 """,
@@ -378,8 +394,6 @@ if page == "Home":
           <div class="hero-art">
             {SVG_HERO}
             <div class="hero-photo" style="background-image:url('{HERO_IMG}')"></div>
-            <div class="float-badge fb1">Quick<b>Under a minute</b></div>
-            <div class="float-badge fb2">Private<b>Nothing is stored</b></div>
           </div>
         </div>
         """,
