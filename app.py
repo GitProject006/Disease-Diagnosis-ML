@@ -1,14 +1,12 @@
-
 import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
 import matplotlib.pyplot as plt
 
-# =====================================================
-# 1. PAGE CONFIGURATION
-# =====================================================
-
+# =========================================================
+# PAGE SETUP
+# =========================================================
 st.set_page_config(
     page_title="Disease Diagnosis AI",
     page_icon="🩺",
@@ -16,890 +14,517 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# =====================================================
-# 2. CUSTOM DESIGN
-# =====================================================
-
+# =========================================================
+# VISUAL DESIGN
+# =========================================================
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-html, body, [class*="css"] {
-    font-family: 'DM Sans', sans-serif;
-}
+html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 
 .stApp {
     background:
-        radial-gradient(ellipse at 5% 5%, #29345B 0%, transparent 32%),
-        radial-gradient(ellipse at 95% 20%, #174452 0%, transparent 30%),
-        linear-gradient(135deg, #101B30, #17243C 55%, #101D32);
-    color: #F5F7FF;
+      radial-gradient(ellipse at 85% 8%, rgba(14,165,190,.18), transparent 34%),
+      radial-gradient(ellipse at 8% 30%, rgba(124,91,220,.16), transparent 35%),
+      #0b1425;
+    color: #edf3ff;
 }
-
-.block-container {
-    max-width: 1450px;
-    padding-top: 2rem;
-    padding-bottom: 2rem;
-}
-
-h1 {
-    color: #FFFFFF !important;
-    font-weight: 800 !important;
-}
-
-h2 {
-    color: #BDAAFF !important;
-    font-weight: 700 !important;
-}
-
-h3 {
-    color: #79DFE9 !important;
-    font-weight: 700 !important;
-}
-
-p, label {
-    color: #D5DDED;
-}
-
-/* SIDEBAR */
+.block-container { max-width: 1500px; padding-top: 1.5rem; padding-bottom: 2rem; }
 
 section[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #111B30, #202744);
-    border-right: 1px solid #394665;
+    background: linear-gradient(180deg, #111d33 0%, #17213b 100%);
+    border-right: 1px solid #2e4161;
 }
+section[data-testid="stSidebar"] * { color: #e8efff; }
 
-section[data-testid="stSidebar"] h1 {
-    color: #BDAAFF !important;
-}
-
-/* METRIC CARDS */
+h1, h2, h3 { letter-spacing: -0.5px; }
+h1 { color: #ffffff !important; font-weight: 800 !important; }
+h2 { color: #b8a7ff !important; font-weight: 750 !important; }
+h3 { color: #77dce8 !important; font-weight: 700 !important; }
+p, label { color: #cbd7e9; }
 
 [data-testid="stMetric"] {
-    background: linear-gradient(145deg, #293B5D, #1C2D48);
-    border: 1px solid #465B7A;
-    padding: 23px;
-    border-radius: 18px;
-    box-shadow: 0 8px 22px rgba(0,0,0,.16);
+    background: linear-gradient(145deg, #1c3150, #172841);
+    border: 1px solid #34516e;
+    border-radius: 16px;
+    padding: 18px 20px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.14);
 }
-
-[data-testid="stMetricLabel"] {
-    color: #C4D0E2 !important;
-}
-
-[data-testid="stMetricValue"] {
-    color: #FFFFFF !important;
-    font-weight: 800;
-}
-
-/* BUTTONS */
+[data-testid="stMetricLabel"] { color: #b9c9df !important; }
+[data-testid="stMetricValue"] { color: #ffffff !important; font-weight: 800; }
 
 div.stButton > button {
-    background: linear-gradient(100deg, #8064E8, #A16BEA);
+    background: linear-gradient(100deg, #7658df, #238eae);
     color: white;
-    border: none;
-    border-radius: 11px;
-    padding: 11px 16px;
+    border: 0;
+    border-radius: 10px;
+    padding: .65rem 1rem;
     font-weight: 700;
-    transition: .2s ease;
 }
-
 div.stButton > button:hover {
-    background: linear-gradient(100deg, #A16BEA, #13AFC1);
     color: white;
-    transform: translateY(-2px);
+    border: 1px solid #9be8ee;
+    filter: brightness(1.12);
 }
-
-/* INPUTS */
-
-div[data-baseweb="select"] > div {
-    background: #202F4B;
-    border: 1px solid #596A91;
-    border-radius: 10px;
-}
-
+div[data-baseweb="select"] > div,
 .stTextInput input {
-    background: #202F4B;
-    color: white;
+    background: #172943;
+    color: #ffffff;
+    border: 1px solid #3b5878;
     border-radius: 10px;
 }
-
-/* HERO */
+[data-testid="stExpander"] {
+    background: #172943;
+    border: 1px solid #344d6b;
+    border-radius: 12px;
+}
+hr { border-color: #30435f; }
 
 .hero {
-    background:
-        radial-gradient(circle at 90% 10%, #60478E 0%, transparent 42%),
-        linear-gradient(120deg, #263C62, #3B4F7B 55%, #286174);
-    border: 1px solid #6479A7;
-    border-radius: 23px;
+    min-height: 300px;
     padding: 32px;
-    min-height: 320px;
-    box-shadow: 0 12px 30px rgba(0,0,0,.16);
+    border-radius: 22px;
+    background: linear-gradient(115deg, #293b68 0%, #315b79 54%, #176d78 100%);
+    border: 1px solid #557b9d;
+    box-shadow: 0 16px 35px rgba(0,0,0,.2);
 }
-
-.hero-tag {
-    color: #85E3E8;
-    font-size: 13px;
+.eyebrow {
+    color: #8ce8e8;
+    font-size: 12px;
     font-weight: 800;
     letter-spacing: 2px;
 }
-
-.hero-title {
-    color: #FFFFFF;
-    font-size: 35px;
-    line-height: 1.25;
-    font-weight: 800;
-    margin-top: 15px;
+.hero h1 {
+    font-size: 38px;
+    line-height: 1.18;
+    margin: 15px 0 12px 0;
 }
+.hero p { color: #e0ebf7; font-size: 15px; line-height: 1.8; max-width: 600px; }
 
-.hero-description {
-    color: #E0E7F4;
-    font-size: 15px;
-    line-height: 1.8;
-    margin-top: 14px;
-}
-
-/* AI ILLUSTRATION */
-
-.ai-visual {
-    background:
-        radial-gradient(circle at center, #416D9B 0%, #25446C 35%,
-        #202D50 68%, #17243D 100%);
-    border: 1px solid #6479A7;
-    border-radius: 23px;
-    min-height: 320px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 20px;
-}
-
-.ai-symbol {
-    font-size: 90px;
-    line-height: 1.4;
-}
-
-.ai-visual-title {
-    font-size: 23px;
-    font-weight: 800;
-    color: white;
-}
-
-.ai-visual-subtitle {
-    color: #B9E6EA;
-    font-size: 13px;
-    margin-top: 8px;
-}
-
-/* FEATURE CARDS */
-
-.feature-card {
-    background: linear-gradient(145deg, #293B5D, #202D49);
-    border: 1px solid #465A7B;
-    border-radius: 17px;
+.visual-panel {
+    min-height: 300px;
+    height: 100%;
     padding: 22px;
-    min-height: 155px;
-    margin-bottom: 12px;
+    border-radius: 22px;
+    background: linear-gradient(145deg, #172b49, #13243d);
+    border: 1px solid #3a5a7d;
+    box-shadow: 0 16px 35px rgba(0,0,0,.2);
 }
-
-.feature-icon {
-    font-size: 32px;
-    margin-bottom: 12px;
+.visual-heading { color: #dceaff; font-size: 15px; font-weight: 700; }
+.visual-sub { color: #8fa9c8; font-size: 11px; }
+.scan-circle {
+    margin: 22px auto 14px auto;
+    width: 112px; height: 112px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 48px;
+    background: radial-gradient(circle, #315d86, #1b3154 70%);
+    border: 2px solid #46c8d4;
+    box-shadow: 0 0 0 10px rgba(52,191,207,.08), 0 0 28px rgba(52,191,207,.25);
 }
-
-.feature-title {
-    color: #FFFFFF;
-    font-size: 18px;
-    font-weight: 800;
-}
-
-.feature-description {
-    color: #C2CEE0;
-    font-size: 13px;
-    line-height: 1.7;
-    margin-top: 8px;
-}
-
-/* RESULT CARD */
-
-.result-card {
-    background: linear-gradient(115deg, #174F65, #176E72);
-    border: 1px solid #54BDB5;
-    border-radius: 18px;
-    padding: 25px;
-    margin-top: 15px;
-}
-
-.result-label {
-    color: #B8F0E7;
-    font-size: 13px;
-    font-weight: 800;
-    letter-spacing: 1px;
-}
-
-.result-value {
-    color: white;
-    font-size: 29px;
-    font-weight: 800;
-    margin-top: 8px;
-}
-
-/* OTHER ELEMENTS */
-
-[data-testid="stExpander"] {
-    background: #202F4B;
-    border: 1px solid #465A7B;
+.signal-row { display:flex; gap:7px; justify-content:center; margin-top:18px; }
+.signal { height:6px; border-radius:10px; background:#2d4868; flex:1; }
+.signal:nth-child(1) { background:#8d72ef; }
+.signal:nth-child(2) { background:#32c4d0; }
+.signal:nth-child(3) { background:#e8a45d; }
+.signal:nth-child(4) { background:#58c99e; }
+.mini-stat {
+    background: rgba(11,24,43,.55);
+    border: 1px solid #304e70;
     border-radius: 12px;
-}
-
-[data-testid="stDataFrame"] {
-    border: 1px solid #465A7B;
-    border-radius: 12px;
-}
-
-hr {
-    border-color: #465675;
-}
-
-.footer {
+    padding: 10px;
     text-align: center;
-    color: #AAB8CF;
-    font-size: 12px;
-    padding: 20px;
 }
+.mini-stat strong { display:block; color:#fff; font-size:18px; }
+.mini-stat span { color:#9fb5d0; font-size:10px; }
+
+.feature {
+    background: linear-gradient(145deg, #1b2d49, #17253e);
+    border: 1px solid #344d6b;
+    border-radius: 15px;
+    padding: 19px;
+    min-height: 145px;
+}
+.feature-icon { font-size: 27px; }
+.feature-title { color:#fff; font-size:16px; font-weight:750; margin-top:10px; }
+.feature-copy { color:#aebed3; font-size:12px; line-height:1.6; margin-top:6px; }
+
+.result {
+    background: linear-gradient(110deg, #164c61, #176c70);
+    border: 1px solid #45bdb5;
+    border-radius: 16px;
+    padding: 22px;
+    margin: 12px 0 18px 0;
+}
+.result small { color:#b8f2e8; font-weight:800; letter-spacing:1.5px; }
+.result div { color:white; font-size:28px; font-weight:800; margin-top:8px; }
+
+.footer { text-align:center; color:#8298b5; font-size:11px; padding:18px 0 4px 0; }
 </style>
 """, unsafe_allow_html=True)
 
-
-# =====================================================
-# 3. LOAD TRAINED MODEL
-# =====================================================
-
+# =========================================================
+# LOAD TRAINED MODEL BUNDLE
+# Expected file: artifacts/disease_model.pkl
+# =========================================================
 @st.cache_resource
 def load_bundle():
     return joblib.load("artifacts/disease_model.pkl")
 
-
 try:
     bundle = load_bundle()
-
     model = bundle["model"]
     mlb = bundle["mlb"]
-
-    diseases = sorted(list(bundle["eligible_classes"]))
-    symptoms = sorted(list(mlb.classes_))
-
-except Exception as e:
-    st.error("Unable to load the trained model.")
-    st.write("Check the model file and folder structure.")
-    st.code(str(e))
+    diseases = sorted([str(x) for x in bundle["eligible_classes"]])
+    symptoms = sorted([str(x) for x in mlb.classes_])
+except Exception as exc:
+    st.error("The trained model could not be loaded.")
+    st.markdown(
+        "Check that **artifacts/disease_model.pkl** exists in your GitHub repository "
+        "and that the file contains the trained model and symptom encoder."
+    )
+    st.code(str(exc))
     st.stop()
 
+def as_series(value, name):
+    """Convert saved counts (dict, Series, or list) into a Series."""
+    if isinstance(value, pd.Series):
+        return value
+    if isinstance(value, dict):
+        return pd.Series(value, dtype="float64")
+    if isinstance(value, list):
+        return pd.Series(value, name=name)
+    return pd.Series(dtype="float64")
 
-# =====================================================
-# 4. NAVIGATION
-# =====================================================
+disease_counts = as_series(bundle.get("disease_counts", {}), "Records")
+symptom_counts = as_series(bundle.get("symptom_counts", {}), "Frequency")
 
-page_options = [
-    "Home",
-    "Disease Prediction",
-    "Disease Library",
-    "EDA Dashboard",
-    "Model Performance",
-    "About"
-]
-
-if "selected_page" not in st.session_state:
-    st.session_state["selected_page"] = "Home"
-
+# =========================================================
+# SIDEBAR NAVIGATION
+# Note: no manual session_state assignment after radio.
+# This avoids StreamlitWidgetAlreadyInstantiatedError.
+# =========================================================
 with st.sidebar:
-
-    st.markdown("""
-    <div style="padding:12px 0 22px 0;">
-        <div style="font-size:38px;">🩺</div>
-        <div style="font-size:23px;font-weight:800;color:#BDAAFF;">
+    st.markdown(
+        """
+        <div style="padding:12px 0 20px 0">
+          <div style="font-size:38px">🩺</div>
+          <div style="font-size:22px;font-weight:800;color:#c0adff">
             Disease Diagnosis AI
-        </div>
-        <div style="font-size:12px;color:#9DB6D1;margin-top:6px;">
+          </div>
+          <div style="font-size:11px;letter-spacing:1.5px;color:#8fa9c8;margin-top:5px">
             SMART HEALTH INSIGHTS
+          </div>
         </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("### Explore")
-
+        """,
+        unsafe_allow_html=True
+    )
+    st.markdown("### WORKSPACE")
     page = st.radio(
-        "Navigation",
-        page_options,
-        key="selected_page",
+        "Navigate",
+        ["Dashboard", "Symptom Analysis", "Analytics", "Model Insights", "About"],
         label_visibility="collapsed"
     )
-
     st.markdown("---")
+    st.caption("Symptom patterns  ·  Data analytics  ·  Machine learning")
 
-    st.markdown("""
-    <div style="color:#AAB8CF;font-size:12px;line-height:2;">
-        <b style="color:#79DFE9;">DISEASE DIAGNOSIS AI</b><br>
-        Symptom insights<br>
-        Data exploration<br>
-        Machine learning
-    </div>
-    """, unsafe_allow_html=True)
-
-
-# =====================================================
-# 5. HOME PAGE
-# =====================================================
-
-if page == "Home":
-
-    left, right = st.columns([1.1, 0.9], gap="large")
+# =========================================================
+# DASHBOARD
+# =========================================================
+if page == "Dashboard":
+    left, right = st.columns([1.15, .85], gap="large")
 
     with left:
-
-        st.markdown("""
-        <div class="hero">
-            <div class="hero-tag">✦ SMART HEALTH INSIGHTS</div>
-            <div class="hero-title">
-                Discover patterns.<br>
-                Explore possibilities.
+        st.markdown(
+            """
+            <div class="hero">
+              <div class="eyebrow">✦ INTELLIGENT HEALTH DATA</div>
+              <h1>Explore health patterns<br>with machine learning</h1>
+              <p>
+                Explore symptom combinations, view model-generated category
+                predictions and understand patterns in the dataset through
+                a clean interactive workspace.
+              </p>
+              <div style="margin-top:22px;color:#b8f4ef;font-size:13px;font-weight:700">
+                ✦ Symptom analysis &nbsp;&nbsp; ✦ Data insights &nbsp;&nbsp; ✦ Model evaluation
+              </div>
             </div>
-            <div class="hero-description">
-                Explore symptom combinations, discover
-                disease categories and understand the
-                power of machine learning through
-                interactive data insights.
-            </div>
-            <br>
-            <div style="color:#9AE9E8;font-size:14px;">
-                ✦ Symptom Explorer &nbsp; ✦ AI Insights
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+            """,
+            unsafe_allow_html=True
+        )
 
     with right:
-
-        st.markdown("""
-        <div class="ai-visual">
-            <div class="ai-symbol">🧬</div>
-            <div class="ai-visual-title">AI + Healthcare</div>
-            <div class="ai-visual-subtitle">
-                Connecting symptoms with data
+        st.markdown(
+            """
+            <div class="visual-panel">
+              <div class="visual-heading">AI HEALTH ANALYTICS</div>
+              <div class="visual-sub">SYMPTOM PATTERN EXPLORER</div>
+              <div class="scan-circle">🧬</div>
+              <div style="text-align:center;color:#e5f4ff;font-weight:700">
+                Pattern recognition
+              </div>
+              <div style="text-align:center;color:#8fa9c8;font-size:11px;margin-top:4px">
+                Machine learning · Classification · Insights
+              </div>
+              <div class="signal-row">
+                <div class="signal"></div><div class="signal"></div>
+                <div class="signal"></div><div class="signal"></div>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:20px">
+                <div class="mini-stat"><strong>01</strong><span>INPUT</span></div>
+                <div class="mini-stat"><strong>02</strong><span>MODEL</span></div>
+                <div class="mini-stat"><strong>03</strong><span>OUTPUT</span></div>
+              </div>
             </div>
-            <div style="font-size:35px;margin-top:18px;">
-                ✚ &nbsp; ◉ &nbsp; ✧
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+            """,
+            unsafe_allow_html=True
+        )
 
     st.markdown("<br>", unsafe_allow_html=True)
-
-    st.markdown("### Your platform at a glance")
+    st.markdown("### WORKSPACE OVERVIEW")
 
     c1, c2, c3 = st.columns(3)
-
-    c1.metric("Disease Categories", len(diseases))
-    c2.metric("Available Symptoms", len(symptoms))
-    c3.metric("ML Algorithms", len(bundle["model_results"]))
+    c1.metric("Disease categories", len(diseases))
+    c2.metric("Available symptoms", len(symptoms))
+    c3.metric("Models evaluated", len(bundle.get("model_results", [])))
 
     st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("### Explore your workspace")
 
-    st.markdown("## Explore the experience")
-    st.caption("Choose an area to explore.")
-
-    features = [
-        (
-            "🔎",
-            "Symptom Explorer",
-            "Explore symptom combinations and model predictions.",
-            "Disease Prediction",
-            "#8064E8"
-        ),
-        (
-            "🧬",
-            "Disease Explorer",
-            "Browse categories represented in the dataset.",
-            "Disease Library",
-            "#13AFC1"
-        ),
-        (
-            "📊",
-            "Data Insights",
-            "Discover patterns and explore interactive charts.",
-            "EDA Dashboard",
-            "#E58A69"
-        ),
-        (
-            "🤖",
-            "AI Performance",
-            "Explore model comparisons and evaluation scores.",
-            "Model Performance",
-            "#45B995"
-        )
+    cards = st.columns(3)
+    card_data = [
+        ("🔎", "Symptom Analysis", "Select symptoms and view the trained model output.", "#8b72ed"),
+        ("📊", "Analytics", "Explore disease distribution and frequent symptoms.", "#25b9c8"),
+        ("🤖", "Model Insights", "Compare model evaluation results.", "#e5a45f")
     ]
-
-    for start in range(0, len(features), 2):
-
-        col1, col2 = st.columns(2)
-
-        for col, item in zip(
-            [col1, col2],
-            features[start:start + 2]
-        ):
-
-            with col:
-
-                st.markdown(f"""
-                <div style="
-                    background:linear-gradient(145deg,#293B5D,#202D49);
-                    border:1px solid #465A7B;
-                    border-left:5px solid {item[4]};
-                    border-radius:17px;
-                    padding:22px;
-                    min-height:150px;
-                    margin-bottom:12px;">
-                    <div style="font-size:30px;">{item[0]}</div>
-                    <div style="font-size:18px;font-weight:800;
-                    color:white;margin-top:10px;">
-                        {item[1]}
-                    </div>
-                    <div style="font-size:13px;color:#C4D0E2;
-                    line-height:1.6;margin-top:8px;">
-                        {item[2]}
-                    </div>
+    for col, (icon, title, desc, accent) in zip(cards, card_data):
+        with col:
+            st.markdown(
+                f"""
+                <div class="feature" style="border-top:3px solid {accent}">
+                  <div class="feature-icon">{icon}</div>
+                  <div class="feature-title">{title}</div>
+                  <div class="feature-copy">{desc}</div>
                 </div>
-                """, unsafe_allow_html=True)
+                """,
+                unsafe_allow_html=True
+            )
 
-                if st.button(
-                    "Explore →",
-                    key="home_" + item[3],
-                    use_container_width=True
-                ):
-                    st.session_state["selected_page"] = item[3]
-                    st.rerun()
+    st.info("Model predictions are not diagnoses and must not guide healthcare decisions.")
 
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    st.markdown("""
-    <div style="
-        background:linear-gradient(110deg,#263C62,#315D77);
-        border:1px solid #526F99;
-        padding:24px;
-        border-radius:17px;">
-        <div style="font-size:20px;font-weight:800;color:white;">
-            A smarter way to explore data
-        </div>
-        <div style="font-size:14px;color:#D4E5F1;margin-top:8px;">
-            Discover how machine learning can identify patterns
-            in structured symptom datasets.
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-
-# =====================================================
-# 6. DISEASE PREDICTION
-# =====================================================
-
-elif page == "Disease Prediction":
-
-    st.markdown("### ✦ INTERACTIVE TOOL")
+# =========================================================
+# SYMPTOM ANALYSIS
+# =========================================================
+elif page == "Symptom Analysis":
+    st.markdown("### INTERACTIVE ANALYSIS")
     st.title("Symptom Analysis")
-
-    st.write(
-        "Choose symptoms from the available dataset to "
-        "explore the trained machine-learning model's output."
-    )
-
-    st.warning(
-        "Model predictions are not diagnoses and must not "
-        "guide healthcare decisions."
-    )
+    st.write("Select symptoms that appear in the dataset to view the classification model's output.")
 
     selected_symptoms = st.multiselect(
-        "Search and select symptoms",
+        "Select symptoms",
         options=symptoms,
-        placeholder="Start typing to find symptoms..."
+        placeholder="Search and select one or more symptoms..."
     )
 
     st.caption(f"{len(selected_symptoms)} symptom(s) selected")
 
-    if selected_symptoms:
-
-        st.markdown("### Selected symptoms")
-
-        st.write(", ".join(selected_symptoms))
-
-    if st.button(
-        "Analyze Selected Symptoms",
-        use_container_width=True
-    ):
-
+    if st.button("Run model analysis", use_container_width=True):
         if not selected_symptoms:
-
-            st.warning("Please select at least one symptom.")
-
+            st.warning("Select at least one symptom before running the model.")
         else:
+            try:
+                input_data = mlb.transform([selected_symptoms])
+                prediction = model.predict(input_data)[0]
 
-            input_data = mlb.transform([selected_symptoms])
-
-            prediction = model.predict(input_data)[0]
-
-            st.markdown(f"""
-            <div class="result-card">
-                <div class="result-label">MODEL PREDICTION</div>
-                <div class="result-value">{prediction}</div>
-            </div>
-            """, unsafe_allow_html=True)
-
-            st.markdown("### Top model scores")
-
-            if hasattr(model, "predict_proba"):
-
-                probabilities = model.predict_proba(input_data)[0]
-                classes = model.classes_
-
-                top_indices = np.argsort(probabilities)[::-1][:3]
-
-                top_results = pd.DataFrame({
-                    "Predicted Category": classes[top_indices],
-                    "Model Score (%)": (
-                        probabilities[top_indices] * 100
-                    ).round(2)
-                })
-
-                st.dataframe(
-                    top_results,
-                    use_container_width=True,
-                    hide_index=True
-                )
-
-                st.caption(
-                    "Model scores are not medical probabilities "
-                    "or estimates of the likelihood of an illness."
-                )
-
-            else:
-
-                st.info(
-                    "This model does not provide probability scores."
-                )
-
-
-# =====================================================
-# 7. DISEASE LIBRARY
-# =====================================================
-
-elif page == "Disease Library":
-
-    st.markdown("### ✦ EXPLORE CATEGORIES")
-    st.title("Disease Library")
-
-    st.write(
-        "Browse the disease categories represented "
-        "in the classification dataset."
-    )
-
-    search = st.text_input(
-        "Search categories",
-        placeholder="Type a category name..."
-    )
-
-    filtered = [
-        d for d in diseases
-        if search.lower() in d.lower()
-    ]
-
-    st.caption(f"{len(filtered)} categories found")
-
-    if filtered:
-
-        cols = st.columns(2)
-
-        for index, disease in enumerate(filtered):
-
-            with cols[index % 2]:
-
-                st.markdown(f"""
-                <div style="
-                    background:linear-gradient(145deg,#293B5D,#202D49);
-                    border:1px solid #465A7B;
-                    border-left:4px solid #13AFC1;
-                    border-radius:14px;
-                    padding:18px;
-                    margin-bottom:12px;">
-                    <div style="font-size:18px;font-weight:800;
-                    color:white;">🧬 {disease}</div>
-                    <div style="font-size:13px;color:#C4D0E2;
-                    margin-top:8px;">
-                        Included in the symptom classification dataset.
+                st.markdown(
+                    f"""
+                    <div class="result">
+                      <small>MODEL-GENERATED CATEGORY</small>
+                      <div>{prediction}</div>
                     </div>
-                </div>
-                """, unsafe_allow_html=True)
+                    """,
+                    unsafe_allow_html=True
+                )
 
+                st.markdown("#### Input summary")
+                st.write(", ".join(selected_symptoms))
+
+                if hasattr(model, "predict_proba"):
+                    scores = model.predict_proba(input_data)[0]
+                    classes = model.classes_
+                    top_idx = np.argsort(scores)[::-1][:3]
+                    score_df = pd.DataFrame({
+                        "Model category": [str(classes[i]) for i in top_idx],
+                        "Model score (%)": [round(float(scores[i]) * 100, 2) for i in top_idx]
+                    })
+                    st.markdown("#### Highest model scores")
+                    st.dataframe(score_df, use_container_width=True, hide_index=True)
+                    st.caption(
+                        "Scores describe the model output only. They are not medical probabilities."
+                    )
+                else:
+                    st.caption("This trained model does not provide probability scores.")
+
+                st.warning(
+                    "Model predictions are not diagnoses and must not guide healthcare decisions."
+                )
+            except Exception as exc:
+                st.error("The model could not process this selection.")
+                st.code(str(exc))
+
+# =========================================================
+# ANALYTICS
+# =========================================================
+elif page == "Analytics":
+    st.markdown("### DATA EXPLORATION")
+    st.title("Dataset Analytics")
+    st.write("Explore the distribution of categories and the frequency of symptom features.")
+
+    if disease_counts.empty and symptom_counts.empty:
+        st.warning("Saved dataset summary counts were not found in the model bundle.")
     else:
+        left, right = st.columns(2, gap="large")
 
-        st.info("No matching category found.")
+        with left:
+            st.markdown("#### Disease category distribution")
+            if not disease_counts.empty:
+                plot_data = disease_counts.sort_values(ascending=False).head(20)
+                fig, ax = plt.subplots(figsize=(8, 5))
+                fig.patch.set_facecolor("#0f1d32")
+                ax.set_facecolor("#172943")
+                plot_data.sort_values().plot(kind="barh", ax=ax, color="#987df0")
+                ax.set_xlabel("Records", color="white")
+                ax.tick_params(colors="#dce7f5")
+                for spine in ax.spines.values():
+                    spine.set_color("#385371")
+                plt.tight_layout()
+                st.pyplot(fig, use_container_width=True)
+                plt.close(fig)
 
+        with right:
+            st.markdown("#### Most frequent symptoms")
+            if not symptom_counts.empty:
+                plot_data = symptom_counts.sort_values(ascending=False).head(15)
+                fig, ax = plt.subplots(figsize=(8, 5))
+                fig.patch.set_facecolor("#0f1d32")
+                ax.set_facecolor("#172943")
+                plot_data.sort_values().plot(kind="barh", ax=ax, color="#29bdc9")
+                ax.set_xlabel("Frequency", color="white")
+                ax.tick_params(colors="#dce7f5")
+                for spine in ax.spines.values():
+                    spine.set_color("#385371")
+                plt.tight_layout()
+                st.pyplot(fig, use_container_width=True)
+                plt.close(fig)
 
-# =====================================================
-# 8. EDA DASHBOARD
-# =====================================================
+        if not disease_counts.empty:
+            st.markdown("#### Category records")
+            counts_df = disease_counts.rename("Record count").rename_axis("Category").reset_index()
+            st.dataframe(counts_df, use_container_width=True, hide_index=True)
 
-elif page == "EDA Dashboard":
+# =========================================================
+# MODEL INSIGHTS
+# =========================================================
+elif page == "Model Insights":
+    st.markdown("### MODEL EVALUATION")
+    st.title("Model Insights")
+    st.write("Review the classification models and evaluation metrics saved during training.")
 
-    st.markdown("### ✦ DATA EXPLORATION")
-    st.title("Data Insights")
+    raw_results = bundle.get("model_results", [])
+    results = pd.DataFrame(raw_results)
 
-    st.write(
-        "Explore disease distribution and symptom "
-        "frequency patterns in the dataset."
-    )
+    if results.empty:
+        st.warning("Model comparison results were not found in the saved bundle.")
+    else:
+        st.markdown("#### Model comparison")
+        st.dataframe(results.round(4), use_container_width=True, hide_index=True)
 
-    disease_counts = pd.Series(
-        bundle["disease_counts"]
-    ).sort_values(ascending=False)
+        if "Accuracy" in results.columns and "Model" in results.columns:
+            fig, ax = plt.subplots(figsize=(10, 4.5))
+            fig.patch.set_facecolor("#0f1d32")
+            ax.set_facecolor("#172943")
+            palette = ["#987df0", "#29bdc9", "#e6a45f", "#55c69a", "#e27e9c", "#6e9de2"]
+            ax.bar(results["Model"].astype(str), results["Accuracy"], color=palette[:len(results)])
+            ax.set_ylabel("Accuracy", color="white")
+            ax.set_ylim(0, 1.05)
+            ax.tick_params(axis="x", rotation=25, colors="#dce7f5")
+            ax.tick_params(axis="y", colors="#dce7f5")
+            for spine in ax.spines.values():
+                spine.set_color("#385371")
+            plt.tight_layout()
+            st.pyplot(fig, use_container_width=True)
+            plt.close(fig)
 
-    symptom_counts = pd.Series(
-        bundle["symptom_counts"]
-    ).sort_values(ascending=False).head(15)
+    st.markdown("#### Selected final model")
+    st.success(str(bundle.get("model_name", "Not specified")))
 
-    c1, c2 = st.columns(2)
+    metrics = bundle.get("metrics", {})
+    if metrics:
+        st.markdown("#### Final evaluation metrics")
+        metric_cols = st.columns(min(4, len(metrics)))
+        for idx, (key, value) in enumerate(metrics.items()):
+            metric_cols[idx % len(metric_cols)].metric(str(key), f"{float(value):.3f}" if isinstance(value, (int, float, np.number)) else str(value))
+    else:
+        st.caption("No final metrics were saved in the model bundle.")
 
-    with c1:
-
-        st.markdown("### Disease Distribution")
-
-        fig, ax = plt.subplots(figsize=(9, 6))
-
-        fig.patch.set_facecolor("#17243C")
-        ax.set_facecolor("#202F4B")
-
-        disease_counts.plot(
-            kind="bar",
-            ax=ax,
-            color="#9B82F2"
-        )
-
-        ax.set_ylabel("Number of Records", color="white")
-        ax.tick_params(axis="x", rotation=90, colors="white")
-        ax.tick_params(axis="y", colors="white")
-
-        for spine in ax.spines.values():
-            spine.set_color("#52627F")
-
-        st.pyplot(fig, use_container_width=True)
-        plt.close(fig)
-
-    with c2:
-
-        st.markdown("### Most Frequent Symptoms")
-
-        fig, ax = plt.subplots(figsize=(9, 6))
-
-        fig.patch.set_facecolor("#17243C")
-        ax.set_facecolor("#202F4B")
-
-        symptom_counts.sort_values().plot(
-            kind="barh",
-            ax=ax,
-            color="#27BED0"
-        )
-
-        ax.set_xlabel("Frequency", color="white")
-        ax.tick_params(colors="white")
-
-        for spine in ax.spines.values():
-            spine.set_color("#52627F")
-
-        st.pyplot(fig, use_container_width=True)
-        plt.close(fig)
-
-    st.markdown("### Dataset Summary")
-
-    summary = pd.DataFrame({
-        "Disease Category": disease_counts.index,
-        "Record Count": disease_counts.values
-    })
-
-    st.dataframe(
-        summary,
-        use_container_width=True,
-        hide_index=True
-    )
-
-
-# =====================================================
-# 9. MODEL PERFORMANCE
-# =====================================================
-
-elif page == "Model Performance":
-
-    st.markdown("### ✦ MODEL EVALUATION")
-    st.title("AI Model Performance")
-
-    results = pd.DataFrame(bundle["model_results"])
-
-    st.write(
-        "Compare the classification algorithms evaluated "
-        "during model development."
-    )
-
-    st.markdown("### Model comparison")
-
-    st.dataframe(
-        results.round(4),
-        use_container_width=True,
-        hide_index=True
-    )
-
-    if "Accuracy" in results.columns:
-
-        fig, ax = plt.subplots(figsize=(11, 5))
-
-        fig.patch.set_facecolor("#17243C")
-        ax.set_facecolor("#202F4B")
-
-        chart_colors = [
-            "#9B82F2",
-            "#27BED0",
-            "#E58A69",
-            "#45B995",
-            "#E7B95D",
-            "#E47F9A"
-        ]
-
-        ax.bar(
-            results["Model"],
-            results["Accuracy"],
-            color=chart_colors[:len(results)],
-            width=0.6
-        )
-
-        ax.set_title(
-            "Model Accuracy Comparison",
-            color="white",
-            fontsize=14
-        )
-
-        ax.set_ylabel("Accuracy", color="white")
-        ax.set_ylim(0, 1.05)
-        ax.tick_params(axis="x", rotation=25, colors="white")
-        ax.tick_params(axis="y", colors="white")
-
-        for spine in ax.spines.values():
-            spine.set_color("#52627F")
-
-        plt.tight_layout()
-
-        st.pyplot(fig, use_container_width=True)
-        plt.close(fig)
-
-    st.markdown("### Selected final model")
-
-    st.success(bundle["model_name"])
-
-    st.markdown("### Evaluation metrics")
-
-    st.json(bundle["metrics"])
-
-
-# =====================================================
-# 10. ABOUT
-# =====================================================
-
+# =========================================================
+# ABOUT
+# =========================================================
 elif page == "About":
-
-    st.markdown("### ✦ PLATFORM INFORMATION")
-    st.title("About Disease Diagnosis AI")
-
+    st.markdown("### PLATFORM INFORMATION")
+    st.title("About")
     st.write(
-        "Disease Diagnosis AI is an interactive application "
-        "that explores symptom-based classification patterns "
-        "using machine learning."
+        "This application uses a trained machine-learning classifier to explore "
+        "relationships between symptom features and disease-category labels in a dataset."
     )
-
-    st.markdown("### Platform features")
 
     a, b = st.columns(2)
-
     with a:
-
-        st.markdown("""
-        <div class="feature-card">
-            <div class="feature-icon">🔎</div>
-            <div class="feature-title">Symptom Classification</div>
-            <div class="feature-description">
-                Explore the output of a trained model
-                using selected dataset symptoms.
+        st.markdown(
+            """
+            <div class="feature">
+              <div class="feature-icon">🧠</div>
+              <div class="feature-title">Machine learning</div>
+              <div class="feature-copy">
+                A trained classification model processes selected symptom features
+                and returns a dataset category.
+              </div>
             </div>
-        </div>
-        """, unsafe_allow_html=True)
-
+            """,
+            unsafe_allow_html=True
+        )
     with b:
-
-        st.markdown("""
-        <div class="feature-card">
-            <div class="feature-icon">📈</div>
-            <div class="feature-title">Data and Evaluation</div>
-            <div class="feature-description">
-                Understand dataset patterns and compare
-                classification algorithms.
+        st.markdown(
+            """
+            <div class="feature">
+              <div class="feature-icon">📈</div>
+              <div class="feature-title">Data exploration</div>
+              <div class="feature-copy">
+                Charts and model comparisons help explore the dataset and
+                understand the model's evaluation results.
+              </div>
             </div>
-        </div>
-        """, unsafe_allow_html=True)
+            """,
+            unsafe_allow_html=True
+        )
 
-    st.markdown("### Technologies used")
+    st.markdown("#### Technology")
+    st.write("Python · Pandas · NumPy · Scikit-learn · Matplotlib · Streamlit")
 
-    technologies = [
-        "Python",
-        "Pandas",
-        "NumPy",
-        "Scikit-learn",
-        "Matplotlib",
-        "Streamlit"
-    ]
-
-    cols = st.columns(3)
-
-    for i, tech in enumerate(technologies):
-
-        cols[i % 3].markdown(f"""
-        <div style="
-            background:#293B5D;
-            border:1px solid #52658A;
-            border-radius:10px;
-            padding:13px;
-            text-align:center;
-            margin-bottom:10px;
-            color:white;
-            font-weight:600;">
-            {tech}
-        </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown("### Dataset limitations")
-
+    st.markdown("#### Dataset limitations")
     st.write(
-        "The dataset contains repeated records and may not "
-        "represent real-world clinical populations. Some "
-        "disease categories may have been excluded from "
-        "model evaluation because of insufficient unique records."
+        "The dataset contains repeated records and may not represent real-world clinical populations. "
+        "The model only predicts labels represented in its training data."
     )
 
+    st.info("Model predictions are not diagnoses and must not guide healthcare decisions.")
 
-# =====================================================
-# 11. FOOTER
-# =====================================================
-
+# =========================================================
+# FOOTER
+# =========================================================
 st.markdown("---")
-
-st.markdown("""
-<div class="footer">
-    Disease Diagnosis AI
-    <br><br>
-    Model predictions are not diagnoses and must not guide
-    healthcare decisions.
-</div>
-""", unsafe_allow_html=True)
+st.markdown(
+    '<div class="footer">Disease Diagnosis AI &nbsp;·&nbsp; '
+    'Model predictions are not diagnoses and must not guide healthcare decisions.</div>',
+    unsafe_allow_html=True
+)
