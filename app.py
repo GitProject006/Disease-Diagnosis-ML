@@ -1,530 +1,583 @@
-import streamlit as st
-import pandas as pd
-import numpy as np
-import joblib
-import matplotlib.pyplot as plt
+import base64
+import os
 
-# =========================================================
+import altair as alt
+import joblib
+import numpy as np
+import pandas as pd
+import streamlit as st
+
+# ------------------------------------------------------------------
 # PAGE SETUP
-# =========================================================
+# ------------------------------------------------------------------
 st.set_page_config(
-    page_title="Disease Diagnosis AI",
+    page_title="MediPredict | Disease Diagnosis AI",
     page_icon="🩺",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
 
-# =========================================================
-# VISUAL DESIGN
-# =========================================================
-st.markdown("""
+# ------------------------------------------------------------------
+# IMAGES
+# Put your own photos in an "assets" folder (hero.jpg, doctor.jpg, lab.jpg)
+# and they will be used automatically. Otherwise the web URLs below are used,
+# and if those fail the gradient background still looks good.
+# ------------------------------------------------------------------
+IMAGE_URLS = {
+    "hero": "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=1200&q=80",
+    "doctor": "https://images.unsplash.com/photo-1559757148-5c350d0d3c56?auto=format&fit=crop&w=900&q=80",
+    "lab": "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&w=900&q=80",
+}
+
+
+def image_src(key):
+    """Use a local file from assets/ if present, else the web URL."""
+    for ext in ("jpg", "jpeg", "png", "webp"):
+        path = f"assets/{key}.{ext}"
+        if os.path.exists(path):
+            with open(path, "rb") as f:
+                data = base64.b64encode(f.read()).decode()
+            mime = "jpeg" if ext in ("jpg", "jpeg") else ext
+            return f"data:image/{mime};base64,{data}"
+    return IMAGE_URLS[key]
+
+
+HERO_IMG, DOCTOR_IMG, LAB_IMG = image_src("hero"), image_src("doctor"), image_src("lab")
+
+# ------------------------------------------------------------------
+# STYLE
+# ------------------------------------------------------------------
+st.markdown(
+    """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
+html, body, [class*="css"] { font-family: 'Poppins', sans-serif; }
+.stApp { background: linear-gradient(180deg, #f2faf8 0%, #eef4fb 100%); color: #1b2733; }
+.block-container { max-width: 1280px; padding-top: 1.4rem; padding-bottom: 2rem; }
+header[data-testid="stHeader"] { background: transparent; }
+h1, h2, h3, h4 { color: #0b2e3f !important; letter-spacing: -0.4px; }
 
-html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-
-.stApp {
-    background:
-      radial-gradient(ellipse at 85% 8%, rgba(14,165,190,.18), transparent 34%),
-      radial-gradient(ellipse at 8% 30%, rgba(124,91,220,.16), transparent 35%),
-      #0b1425;
-    color: #edf3ff;
-}
-.block-container { max-width: 1500px; padding-top: 1.5rem; padding-bottom: 2rem; }
-
+/* ---------- sidebar ---------- */
 section[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #111d33 0%, #17213b 100%);
-    border-right: 1px solid #2e4161;
+    background: linear-gradient(190deg, #06353f 0%, #0a5560 55%, #0f6e56 100%);
 }
-section[data-testid="stSidebar"] * { color: #e8efff; }
+section[data-testid="stSidebar"] * { color: #e7fbf6 !important; }
+section[data-testid="stSidebar"] hr { border-color: rgba(255,255,255,.18); }
+section[data-testid="stSidebar"] div[role="radiogroup"] label {
+    background: rgba(255,255,255,.07); border-radius: 12px; padding: 9px 14px;
+    margin-bottom: 7px; transition: all .25s ease; width: 100%;
+}
+section[data-testid="stSidebar"] div[role="radiogroup"] label:hover {
+    background: rgba(255,255,255,.18); transform: translateX(4px);
+}
+.brand { display:flex; align-items:center; gap:12px; padding: 8px 0 18px 0; }
+.brand-logo {
+    width: 46px; height: 46px; border-radius: 14px; display:flex; align-items:center;
+    justify-content:center; font-size: 24px;
+    background: linear-gradient(135deg, #34d3b0, #1a9bb0);
+    box-shadow: 0 6px 18px rgba(0,0,0,.25);
+}
+.brand-name { font-size: 20px; font-weight: 700; line-height: 1.1; }
+.brand-sub { font-size: 11px; letter-spacing: 1.6px; opacity: .75; }
 
-h1, h2, h3 { letter-spacing: -0.5px; }
-h1 { color: #ffffff !important; font-weight: 800 !important; }
-h2 { color: #b8a7ff !important; font-weight: 750 !important; }
-h3 { color: #77dce8 !important; font-weight: 700 !important; }
-p, label { color: #cbd7e9; }
-
-[data-testid="stMetric"] {
-    background: linear-gradient(145deg, #1c3150, #172841);
-    border: 1px solid #34516e;
-    border-radius: 16px;
-    padding: 18px 20px;
-    box-shadow: 0 8px 24px rgba(0,0,0,.14);
-}
-[data-testid="stMetricLabel"] { color: #b9c9df !important; }
-[data-testid="stMetricValue"] { color: #ffffff !important; font-weight: 800; }
-
-div.stButton > button {
-    background: linear-gradient(100deg, #7658df, #238eae);
-    color: white;
-    border: 0;
-    border-radius: 10px;
-    padding: .65rem 1rem;
-    font-weight: 700;
-}
-div.stButton > button:hover {
-    color: white;
-    border: 1px solid #9be8ee;
-    filter: brightness(1.12);
-}
-div[data-baseweb="select"] > div,
-.stTextInput input {
-    background: #172943;
-    color: #ffffff;
-    border: 1px solid #3b5878;
-    border-radius: 10px;
-}
-[data-testid="stExpander"] {
-    background: #172943;
-    border: 1px solid #344d6b;
-    border-radius: 12px;
-}
-hr { border-color: #30435f; }
-
+/* ---------- hero ---------- */
 .hero {
-    min-height: 300px;
-    padding: 32px;
-    border-radius: 22px;
-    background: linear-gradient(115deg, #293b68 0%, #315b79 54%, #176d78 100%);
-    border: 1px solid #557b9d;
-    box-shadow: 0 16px 35px rgba(0,0,0,.2);
+    position: relative; overflow: hidden; border-radius: 26px; min-height: 360px;
+    display: grid; grid-template-columns: 1.15fr .85fr; align-items: center;
+    background: linear-gradient(120deg, #06353f 0%, #0f6e56 60%, #1aa6a0 100%);
+    box-shadow: 0 22px 50px rgba(6,53,63,.28); margin-bottom: 26px;
 }
-.eyebrow {
-    color: #8ce8e8;
-    font-size: 12px;
-    font-weight: 800;
-    letter-spacing: 2px;
+.hero-text { padding: 44px 46px; z-index: 2; }
+.pill {
+    display:inline-block; background: rgba(255,255,255,.16); color:#d6fff3;
+    border: 1px solid rgba(255,255,255,.28); padding: 6px 14px; border-radius: 30px;
+    font-size: 12px; font-weight: 600; letter-spacing: 1px;
 }
-.hero h1 {
-    font-size: 38px;
-    line-height: 1.18;
-    margin: 15px 0 12px 0;
+.hero h1 { color:#fff !important; font-size: 42px; font-weight: 800; line-height: 1.15; margin: 18px 0 14px 0; }
+.hero h1 span { color: #7ff0d0; }
+.hero p { color:#d3efe9; font-size: 15px; line-height: 1.8; max-width: 520px; margin: 0; }
+.hero-photo {
+    height: 100%; min-height: 360px; background-size: cover; background-position: center;
+    clip-path: polygon(14% 0, 100% 0, 100% 100%, 0 100%);
+    position: relative;
 }
-.hero p { color: #e0ebf7; font-size: 15px; line-height: 1.8; max-width: 600px; }
+.hero-photo::after {
+    content:""; position:absolute; inset:0;
+    background: linear-gradient(90deg, rgba(6,53,63,.55), rgba(6,53,63,0) 60%);
+}
+.float-badge {
+    position:absolute; z-index:3; background:#fff; border-radius:16px; padding: 11px 16px;
+    box-shadow: 0 12px 30px rgba(0,0,0,.25); font-size: 12px; color:#496070;
+    animation: floaty 4s ease-in-out infinite;
+}
+.float-badge b { display:block; color:#0b2e3f; font-size: 17px; }
+.fb1 { right: 34px; top: 38px; }
+.fb2 { right: 150px; bottom: 34px; animation-delay: 1.4s; }
+@keyframes floaty { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
 
-.visual-panel {
-    min-height: 300px;
-    height: 100%;
-    padding: 22px;
-    border-radius: 22px;
-    background: linear-gradient(145deg, #172b49, #13243d);
-    border: 1px solid #3a5a7d;
-    box-shadow: 0 16px 35px rgba(0,0,0,.2);
+.pulse-line { margin-top: 26px; width: 260px; height: 46px; }
+.pulse-line path {
+    stroke: #7ff0d0; stroke-width: 3; fill: none; stroke-linecap: round; stroke-linejoin: round;
+    stroke-dasharray: 420; stroke-dashoffset: 420; animation: draw 3s linear infinite;
 }
-.visual-heading { color: #dceaff; font-size: 15px; font-weight: 700; }
-.visual-sub { color: #8fa9c8; font-size: 11px; }
-.scan-circle {
-    margin: 22px auto 14px auto;
-    width: 112px; height: 112px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 48px;
-    background: radial-gradient(circle, #315d86, #1b3154 70%);
-    border: 2px solid #46c8d4;
-    box-shadow: 0 0 0 10px rgba(52,191,207,.08), 0 0 28px rgba(52,191,207,.25);
-}
-.signal-row { display:flex; gap:7px; justify-content:center; margin-top:18px; }
-.signal { height:6px; border-radius:10px; background:#2d4868; flex:1; }
-.signal:nth-child(1) { background:#8d72ef; }
-.signal:nth-child(2) { background:#32c4d0; }
-.signal:nth-child(3) { background:#e8a45d; }
-.signal:nth-child(4) { background:#58c99e; }
-.mini-stat {
-    background: rgba(11,24,43,.55);
-    border: 1px solid #304e70;
-    border-radius: 12px;
-    padding: 10px;
-    text-align: center;
-}
-.mini-stat strong { display:block; color:#fff; font-size:18px; }
-.mini-stat span { color:#9fb5d0; font-size:10px; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
 
-.feature {
-    background: linear-gradient(145deg, #1b2d49, #17253e);
-    border: 1px solid #344d6b;
-    border-radius: 15px;
-    padding: 19px;
-    min-height: 145px;
+/* ---------- cards ---------- */
+.stat {
+    background:#fff; border-radius: 20px; padding: 20px 22px; border: 1px solid #e2ecf0;
+    box-shadow: 0 8px 22px rgba(16,60,80,.06); transition: all .25s ease; position: relative; overflow: hidden;
 }
-.feature-icon { font-size: 27px; }
-.feature-title { color:#fff; font-size:16px; font-weight:750; margin-top:10px; }
-.feature-copy { color:#aebed3; font-size:12px; line-height:1.6; margin-top:6px; }
+.stat:hover { transform: translateY(-5px); box-shadow: 0 16px 32px rgba(16,60,80,.12); }
+.stat .ico { font-size: 26px; }
+.stat .num { font-size: 30px; font-weight: 800; color:#0b2e3f; margin-top: 6px; }
+.stat .lbl { font-size: 12px; color:#6a7f8c; font-weight: 500; }
+.stat::before { content:""; position:absolute; left:0; top:0; width:100%; height:4px; background: var(--c); }
 
+.step {
+    background:#fff; border-radius: 20px; overflow:hidden; border:1px solid #e2ecf0; height:100%;
+    box-shadow: 0 8px 22px rgba(16,60,80,.06); transition: all .25s ease;
+}
+.step:hover { transform: translateY(-6px); box-shadow: 0 18px 36px rgba(16,60,80,.14); }
+.step .img { height: 130px; background-size: cover; background-position: center; background-color:#cfeee6; }
+.step .body { padding: 18px 20px 20px 20px; }
+.step .no { color:#0f8a6e; font-size: 12px; font-weight: 700; letter-spacing: 1.5px; }
+.step h4 { margin: 4px 0 6px 0; font-size: 17px; }
+.step p { color:#62768a; font-size: 13px; line-height: 1.7; margin:0; }
+
+.banner {
+    border-radius: 22px; padding: 28px 32px; color:#fff; margin-bottom: 20px;
+    background: linear-gradient(100deg, rgba(6,53,63,.92), rgba(15,110,86,.82)), var(--img);
+    background-size: cover; background-position: center;
+    box-shadow: 0 16px 36px rgba(6,53,63,.22);
+}
+.banner h1 { color:#fff !important; margin:0 0 6px 0; font-size: 32px; }
+.banner p { color:#d3efe9; margin:0; font-size: 14px; }
+
+.panel {
+    background:#fff; border:1px solid #e2ecf0; border-radius: 20px; padding: 22px 24px;
+    box-shadow: 0 8px 22px rgba(16,60,80,.06);
+}
+.chip {
+    display:inline-block; background: linear-gradient(135deg, #d9f7ee, #d3eefb); color:#0a4d57;
+    font-size: 12.5px; font-weight: 600; padding: 6px 14px; border-radius: 20px; margin: 4px 6px 4px 0;
+    border: 1px solid #bfe6dc;
+}
+
+/* ---------- result ---------- */
 .result {
-    background: linear-gradient(110deg, #164c61, #176c70);
-    border: 1px solid #45bdb5;
-    border-radius: 16px;
-    padding: 22px;
-    margin: 12px 0 18px 0;
+    border-radius: 22px; padding: 26px 30px; color:#fff; display:flex; align-items:center; gap: 28px;
+    background: linear-gradient(120deg, #0a5560, #0f8a6e); box-shadow: 0 18px 38px rgba(15,110,86,.3);
 }
-.result small { color:#b8f2e8; font-weight:800; letter-spacing:1.5px; }
-.result div { color:white; font-size:28px; font-weight:800; margin-top:8px; }
+.result small { letter-spacing: 2px; font-weight: 600; color:#b8fbe6; }
+.result .name { font-size: 36px; font-weight: 800; line-height: 1.15; margin-top: 4px; }
+.result .sub { font-size: 13px; color:#c9f3e8; margin-top: 6px; }
+.ring-wrap { position: relative; width: 110px; height: 110px; flex-shrink: 0; }
+.ring-wrap .txt {
+    position:absolute; inset:0; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; font-size: 22px; font-weight: 800;
+}
+.ring-wrap .txt span { font-size: 10px; font-weight: 500; opacity: .85; }
 
-.footer { text-align:center; color:#8298b5; font-size:11px; padding:18px 0 4px 0; }
+.bar-row { display:grid; grid-template-columns: 150px 1fr 56px; align-items:center; gap: 14px; margin: 11px 0; }
+.bar-name { font-size: 14px; font-weight: 600; color:#0b2e3f; }
+.bar-track { background:#e8f1f4; height: 12px; border-radius: 10px; overflow:hidden; }
+.bar-fill { height: 100%; border-radius: 10px; animation: grow 1s ease-out; }
+@keyframes grow { from { width: 0 !important; } }
+.bar-val { font-size: 13px; font-weight: 700; color:#37566a; text-align:right; }
+
+.disclaimer {
+    background:#fff7e6; border:1px solid #f2d9a3; color:#7a5200; border-radius: 14px;
+    padding: 12px 16px; font-size: 13px; margin-top: 18px;
+}
+.footer { text-align:center; color:#7d92a1; font-size: 12px; padding: 28px 0 4px 0; }
+
+/* ---------- widgets ---------- */
+div.stButton > button {
+    background: linear-gradient(100deg, #0f8a6e, #1a9bb0); color:#fff; border:0; border-radius: 14px;
+    padding: .7rem 1.2rem; font-weight: 600; font-size: 15px; transition: all .2s ease;
+    box-shadow: 0 8px 20px rgba(15,138,110,.3);
+}
+div.stButton > button:hover { transform: translateY(-2px); filter: brightness(1.08); color:#fff; }
+div[data-baseweb="select"] > div { border-radius: 14px; border-color: #cfe3e8; background:#fff; }
+[data-testid="stDataFrame"] { border-radius: 16px; overflow: hidden; }
+@media (max-width: 900px) { .hero { grid-template-columns: 1fr; } .hero-photo { display:none; } }
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
-# =========================================================
-# LOAD TRAINED MODEL BUNDLE
-# Expected file: artifacts/disease_model.pkl
-# =========================================================
+DISCLAIMER = (
+    "Educational project only. Predictions come from a machine-learning model and are "
+    "not a medical diagnosis. Please consult a qualified doctor."
+)
+PALETTE = ["#0f8a6e", "#1a9bb0", "#7c6cf0", "#e9a23b", "#e5677f"]
+
+
+# ------------------------------------------------------------------
+# LOAD MODEL BUNDLE
+# ------------------------------------------------------------------
 @st.cache_resource
 def load_bundle():
     return joblib.load("artifacts/disease_model.pkl")
+
+
+def as_series(value):
+    if isinstance(value, pd.Series):
+        return value
+    if isinstance(value, dict):
+        return pd.Series(value, dtype="float64")
+    return pd.Series(dtype="float64")
+
+
+def pretty(text):
+    return str(text).replace("_", " ").strip().title()
+
 
 try:
     bundle = load_bundle()
     model = bundle["model"]
     mlb = bundle["mlb"]
-    diseases = sorted([str(x) for x in bundle["eligible_classes"]])
-    symptoms = sorted([str(x) for x in mlb.classes_])
+    symptoms = sorted(str(s) for s in mlb.classes_)
+    diseases = sorted(str(d) for d in bundle["eligible_classes"])
 except Exception as exc:
-    st.error("The trained model could not be loaded.")
-    st.markdown(
-        "Check that **artifacts/disease_model.pkl** exists in your GitHub repository "
-        "and that the file contains the trained model and symptom encoder."
-    )
+    st.error("Could not load artifacts/disease_model.pkl. Check that the file is in your GitHub repo.")
     st.code(str(exc))
     st.stop()
 
-def as_series(value, name):
-    """Convert saved counts (dict, Series, or list) into a Series."""
-    if isinstance(value, pd.Series):
-        return value
-    if isinstance(value, dict):
-        return pd.Series(value, dtype="float64")
-    if isinstance(value, list):
-        return pd.Series(value, name=name)
-    return pd.Series(dtype="float64")
+disease_counts = as_series(bundle.get("disease_counts", {}))
+symptom_counts = as_series(bundle.get("symptom_counts", {}))
+results_df = pd.DataFrame(bundle.get("model_results", []))
+metrics = bundle.get("metrics", {})
+best_params = bundle.get("best_params", {})
 
-disease_counts = as_series(bundle.get("disease_counts", {}), "Records")
-symptom_counts = as_series(bundle.get("symptom_counts", {}), "Frequency")
 
-# =========================================================
-# SIDEBAR NAVIGATION
-# Note: no manual session_state assignment after radio.
-# This avoids StreamlitWidgetAlreadyInstantiatedError.
-# =========================================================
+def bar_chart(series, color, title, top=15):
+    df = series.sort_values(ascending=False).head(top).rename("value").rename_axis("name").reset_index()
+    df["name"] = df["name"].map(pretty)
+    chart = (
+        alt.Chart(df)
+        .mark_bar(cornerRadiusEnd=8, color=color)
+        .encode(
+            x=alt.X("value:Q", title=None),
+            y=alt.Y("name:N", sort="-x", title=None, axis=alt.Axis(labelLimit=220)),
+            tooltip=["name", "value"],
+        )
+        .properties(height=30 * len(df) + 10, title=title)
+        .configure_view(strokeWidth=0)
+        .configure_axis(grid=False, labelFontSize=12)
+        .configure_title(fontSize=16, anchor="start", color="#0b2e3f")
+    )
+    st.altair_chart(chart, use_container_width=True)
+
+
+# ------------------------------------------------------------------
+# SIDEBAR
+# ------------------------------------------------------------------
 with st.sidebar:
     st.markdown(
         """
-        <div style="padding:12px 0 20px 0">
-          <div style="font-size:38px">🩺</div>
-          <div style="font-size:22px;font-weight:800;color:#c0adff">
-            Disease Diagnosis AI
+        <div class="brand">
+          <div class="brand-logo">🩺</div>
+          <div><div class="brand-name">MediPredict</div>
+          <div class="brand-sub">AI DISEASE DIAGNOSIS</div></div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    page = st.radio(
+        "Navigate",
+        ["🏠  Home", "🔍  Diagnose", "📊  Data explorer", "🤖  Model comparison", "ℹ️  About"],
+        label_visibility="collapsed",
+    )
+    st.markdown("---")
+    st.caption(f"🧬 {len(diseases)} diseases   ·   🩸 {len(symptoms)} symptoms")
+    st.caption("Built with Python, Scikit-learn and Streamlit")
+
+page = page.split("  ", 1)[1]
+
+# ------------------------------------------------------------------
+# HOME
+# ------------------------------------------------------------------
+if page == "Home":
+    st.markdown(
+        f"""
+        <div class="hero">
+          <div class="hero-text">
+            <span class="pill">✦ AI POWERED HEALTH INSIGHTS</span>
+            <h1>Understand your symptoms with <span>machine learning</span></h1>
+            <p>Select the symptoms you feel and our trained classifier ranks the most
+            likely diseases in seconds, with a confidence score for each prediction.</p>
+            <svg class="pulse-line" viewBox="0 0 260 46">
+              <path d="M0 24 H70 L82 6 L98 40 L112 14 L124 24 H260"/>
+            </svg>
           </div>
-          <div style="font-size:11px;letter-spacing:1.5px;color:#8fa9c8;margin-top:5px">
-            SMART HEALTH INSIGHTS
+          <div class="hero-photo" style="background-image:url('{HERO_IMG}')">
+            <div class="float-badge fb1">Diseases covered<b>{len(diseases)}+</b></div>
+            <div class="float-badge fb2">Symptoms known<b>{len(symptoms)}+</b></div>
           </div>
         </div>
         """,
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )
-    st.markdown("### WORKSPACE")
-    page = st.radio(
-        "Navigate",
-        ["Dashboard", "Symptom Analysis", "Analytics", "Model Insights", "About"],
-        label_visibility="collapsed"
-    )
-    st.markdown("---")
-    st.caption("Symptom patterns  ·  Data analytics  ·  Machine learning")
 
-# =========================================================
-# DASHBOARD
-# =========================================================
-if page == "Dashboard":
-    left, right = st.columns([1.15, .85], gap="large")
-
-    with left:
-        st.markdown(
-            """
-            <div class="hero">
-              <div class="eyebrow">✦ INTELLIGENT HEALTH DATA</div>
-              <h1>Explore health patterns<br>with machine learning</h1>
-              <p>
-                Explore symptom combinations, view model-generated category
-                predictions and understand patterns in the dataset through
-                a clean interactive workspace.
-              </p>
-              <div style="margin-top:22px;color:#b8f4ef;font-size:13px;font-weight:700">
-                ✦ Symptom analysis &nbsp;&nbsp; ✦ Data insights &nbsp;&nbsp; ✦ Model evaluation
-              </div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    with right:
-        st.markdown(
-            """
-            <div class="visual-panel">
-              <div class="visual-heading">AI HEALTH ANALYTICS</div>
-              <div class="visual-sub">SYMPTOM PATTERN EXPLORER</div>
-              <div class="scan-circle">🧬</div>
-              <div style="text-align:center;color:#e5f4ff;font-weight:700">
-                Pattern recognition
-              </div>
-              <div style="text-align:center;color:#8fa9c8;font-size:11px;margin-top:4px">
-                Machine learning · Classification · Insights
-              </div>
-              <div class="signal-row">
-                <div class="signal"></div><div class="signal"></div>
-                <div class="signal"></div><div class="signal"></div>
-              </div>
-              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:20px">
-                <div class="mini-stat"><strong>01</strong><span>INPUT</span></div>
-                <div class="mini-stat"><strong>02</strong><span>MODEL</span></div>
-                <div class="mini-stat"><strong>03</strong><span>OUTPUT</span></div>
-              </div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("### WORKSPACE OVERVIEW")
-
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Disease categories", len(diseases))
-    c2.metric("Available symptoms", len(symptoms))
-    c3.metric("Models evaluated", len(bundle.get("model_results", [])))
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("### Explore your workspace")
-
-    cards = st.columns(3)
-    card_data = [
-        ("🔎", "Symptom Analysis", "Select symptoms and view the trained model output.", "#8b72ed"),
-        ("📊", "Analytics", "Explore disease distribution and frequent symptoms.", "#25b9c8"),
-        ("🤖", "Model Insights", "Compare model evaluation results.", "#e5a45f")
+    acc = metrics.get("Accuracy") or metrics.get("accuracy")
+    stats = [
+        ("🧬", len(diseases), "Diseases covered", "#0f8a6e"),
+        ("🩸", len(symptoms), "Symptoms available", "#1a9bb0"),
+        ("🤖", len(results_df) if not results_df.empty else "-", "Models compared", "#7c6cf0"),
+        ("🎯", f"{float(acc) * 100:.1f}%" if acc is not None else "-", "Final accuracy", "#e9a23b"),
     ]
-    for col, (icon, title, desc, accent) in zip(cards, card_data):
-        with col:
-            st.markdown(
-                f"""
-                <div class="feature" style="border-top:3px solid {accent}">
-                  <div class="feature-icon">{icon}</div>
-                  <div class="feature-title">{title}</div>
-                  <div class="feature-copy">{desc}</div>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+    for col, (ico, num, lbl, c) in zip(st.columns(4), stats):
+        col.markdown(
+            f'<div class="stat" style="--c:{c}"><div class="ico">{ico}</div>'
+            f'<div class="num">{num}</div><div class="lbl">{lbl}</div></div>',
+            unsafe_allow_html=True,
+        )
 
-    st.info("Model predictions are not diagnoses and must not guide healthcare decisions.")
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("### How it works")
+    steps = [
+        ("STEP 01", "Select symptoms", "Search and pick every symptom you are experiencing.", DOCTOR_IMG),
+        ("STEP 02", "Model analyses", "The tuned classifier scores each disease from the pattern.", LAB_IMG),
+        ("STEP 03", "Get ranked results", "See the top predictions with confidence bars.", HERO_IMG),
+    ]
+    for col, (no, t, d, img) in zip(st.columns(3, gap="large"), steps):
+        col.markdown(
+            f'<div class="step"><div class="img" style="background-image:url(\'{img}\')"></div>'
+            f'<div class="body"><div class="no">{no}</div><h4>{t}</h4><p>{d}</p></div></div>',
+            unsafe_allow_html=True,
+        )
+    st.markdown(f'<div class="disclaimer">⚠️ {DISCLAIMER}</div>', unsafe_allow_html=True)
 
-# =========================================================
-# SYMPTOM ANALYSIS
-# =========================================================
-elif page == "Symptom Analysis":
-    st.markdown("### INTERACTIVE ANALYSIS")
-    st.title("Symptom Analysis")
-    st.write("Select symptoms that appear in the dataset to view the classification model's output.")
-
-    selected_symptoms = st.multiselect(
-        "Select symptoms",
-        options=symptoms,
-        placeholder="Search and select one or more symptoms..."
+# ------------------------------------------------------------------
+# DIAGNOSE
+# ------------------------------------------------------------------
+elif page == "Diagnose":
+    st.markdown(
+        f"""
+        <div class="banner" style="--img:url('{DOCTOR_IMG}')">
+          <h1>Symptom checker</h1>
+          <p>Pick every symptom you have. More symptoms usually means a better prediction.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
-    st.caption(f"{len(selected_symptoms)} symptom(s) selected")
+    if "sel" not in st.session_state:
+        st.session_state["sel"] = []
 
-    if st.button("Run model analysis", use_container_width=True):
-        if not selected_symptoms:
-            st.warning("Select at least one symptom before running the model.")
+    def add_symptom(sym):
+        if sym not in st.session_state["sel"]:
+            st.session_state["sel"] = st.session_state["sel"] + [sym]
+
+    def clear_all():
+        st.session_state["sel"] = []
+
+    if not symptom_counts.empty:
+        quick = [str(s) for s in symptom_counts.sort_values(ascending=False).index[:6] if str(s) in symptoms]
+        if quick:
+            st.caption("Quick add common symptoms")
+            for col, s in zip(st.columns(len(quick)), quick):
+                col.button(pretty(s), key=f"q_{s}", on_click=add_symptom, args=(s,), use_container_width=True)
+
+    selected = st.multiselect(
+        "Symptoms",
+        options=symptoms,
+        key="sel",
+        format_func=pretty,
+        placeholder="Type to search, e.g. fever, cough, headache",
+    )
+
+    if selected:
+        st.markdown(
+            "".join(f'<span class="chip">{pretty(s)}</span>' for s in selected), unsafe_allow_html=True
+        )
+
+    b1, b2 = st.columns([4, 1])
+    run = b1.button("🔬  Predict condition", use_container_width=True)
+    b2.button("Clear", on_click=clear_all, use_container_width=True)
+
+    if run:
+        if not selected:
+            st.warning("Select at least one symptom first.")
         else:
             try:
-                input_data = mlb.transform([selected_symptoms])
-                prediction = model.predict(input_data)[0]
+                x = mlb.transform([selected])
+                pred = model.predict(x)[0]
+                has_proba = hasattr(model, "predict_proba")
+                probs = model.predict_proba(x)[0] if has_proba else None
+                conf = float(probs.max()) * 100 if has_proba else None
 
-                st.markdown(
-                    f"""
-                    <div class="result">
-                      <small>MODEL-GENERATED CATEGORY</small>
-                      <div>{prediction}</div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
-
-                st.markdown("#### Input summary")
-                st.write(", ".join(selected_symptoms))
-
-                if hasattr(model, "predict_proba"):
-                    scores = model.predict_proba(input_data)[0]
-                    classes = model.classes_
-                    top_idx = np.argsort(scores)[::-1][:3]
-                    score_df = pd.DataFrame({
-                        "Model category": [str(classes[i]) for i in top_idx],
-                        "Model score (%)": [round(float(scores[i]) * 100, 2) for i in top_idx]
-                    })
-                    st.markdown("#### Highest model scores")
-                    st.dataframe(score_df, use_container_width=True, hide_index=True)
-                    st.caption(
-                        "Scores describe the model output only. They are not medical probabilities."
+                ring = ""
+                if conf is not None:
+                    dash = conf / 100 * 263.9
+                    ring = (
+                        '<div class="ring-wrap"><svg width="110" height="110" viewBox="0 0 110 110">'
+                        '<circle cx="55" cy="55" r="42" stroke="rgba(255,255,255,.2)" stroke-width="10" fill="none"/>'
+                        f'<circle cx="55" cy="55" r="42" stroke="#7ff0d0" stroke-width="10" fill="none" '
+                        f'stroke-linecap="round" stroke-dasharray="{dash:.1f} 263.9" transform="rotate(-90 55 55)"/>'
+                        f'</svg><div class="txt">{conf:.0f}%<span>confidence</span></div></div>'
                     )
-                else:
-                    st.caption("This trained model does not provide probability scores.")
-
-                st.warning(
-                    "Model predictions are not diagnoses and must not guide healthcare decisions."
+                st.markdown(
+                    f'<div class="result">{ring}<div><small>MOST LIKELY CONDITION</small>'
+                    f'<div class="name">{pretty(pred)}</div>'
+                    f'<div class="sub">Based on {len(selected)} selected symptom(s)</div></div></div>',
+                    unsafe_allow_html=True,
                 )
+
+                if has_proba:
+                    top = np.argsort(probs)[::-1][:5]
+                    rows = ""
+                    for rank, i in enumerate(top):
+                        pct = float(probs[i]) * 100
+                        rows += (
+                            f'<div class="bar-row"><div class="bar-name">{pretty(model.classes_[i])}</div>'
+                            f'<div class="bar-track"><div class="bar-fill" style="width:{pct:.1f}%;'
+                            f'background:{PALETTE[rank % len(PALETTE)]}"></div></div>'
+                            f'<div class="bar-val">{pct:.1f}%</div></div>'
+                        )
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    st.markdown(f'<div class="panel"><h4>Top 5 predictions</h4>{rows}</div>', unsafe_allow_html=True)
+
+                    report = pd.DataFrame(
+                        {
+                            "Condition": [pretty(model.classes_[i]) for i in top],
+                            "Confidence %": [round(float(probs[i]) * 100, 2) for i in top],
+                        }
+                    )
+                    st.download_button(
+                        "⬇️  Download result (CSV)",
+                        report.to_csv(index=False).encode(),
+                        file_name="prediction_result.csv",
+                        mime="text/csv",
+                    )
+                st.markdown(f'<div class="disclaimer">⚠️ {DISCLAIMER}</div>', unsafe_allow_html=True)
             except Exception as exc:
                 st.error("The model could not process this selection.")
                 st.code(str(exc))
 
-# =========================================================
-# ANALYTICS
-# =========================================================
-elif page == "Analytics":
-    st.markdown("### DATA EXPLORATION")
-    st.title("Dataset Analytics")
-    st.write("Explore the distribution of categories and the frequency of symptom features.")
-
+# ------------------------------------------------------------------
+# DATA EXPLORER
+# ------------------------------------------------------------------
+elif page == "Data explorer":
+    st.markdown(
+        f"""
+        <div class="banner" style="--img:url('{LAB_IMG}')">
+          <h1>Exploratory data analysis</h1>
+          <p>Understand the dataset before modelling: class balance and symptom frequency.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
     if disease_counts.empty and symptom_counts.empty:
-        st.warning("Saved dataset summary counts were not found in the model bundle.")
+        st.warning("Dataset counts were not saved in the model bundle.")
     else:
-        left, right = st.columns(2, gap="large")
-
-        with left:
-            st.markdown("#### Disease category distribution")
+        a, b = st.columns(2, gap="large")
+        with a:
             if not disease_counts.empty:
-                plot_data = disease_counts.sort_values(ascending=False).head(20)
-                fig, ax = plt.subplots(figsize=(8, 5))
-                fig.patch.set_facecolor("#0f1d32")
-                ax.set_facecolor("#172943")
-                plot_data.sort_values().plot(kind="barh", ax=ax, color="#987df0")
-                ax.set_xlabel("Records", color="white")
-                ax.tick_params(colors="#dce7f5")
-                for spine in ax.spines.values():
-                    spine.set_color("#385371")
-                plt.tight_layout()
-                st.pyplot(fig, use_container_width=True)
-                plt.close(fig)
-
-        with right:
-            st.markdown("#### Most frequent symptoms")
+                bar_chart(disease_counts, "#0f8a6e", "Records per disease (top 15)")
+        with b:
             if not symptom_counts.empty:
-                plot_data = symptom_counts.sort_values(ascending=False).head(15)
-                fig, ax = plt.subplots(figsize=(8, 5))
-                fig.patch.set_facecolor("#0f1d32")
-                ax.set_facecolor("#172943")
-                plot_data.sort_values().plot(kind="barh", ax=ax, color="#29bdc9")
-                ax.set_xlabel("Frequency", color="white")
-                ax.tick_params(colors="#dce7f5")
-                for spine in ax.spines.values():
-                    spine.set_color("#385371")
-                plt.tight_layout()
-                st.pyplot(fig, use_container_width=True)
-                plt.close(fig)
+                bar_chart(symptom_counts, "#7c6cf0", "Most frequent symptoms (top 15)")
 
         if not disease_counts.empty:
-            st.markdown("#### Category records")
-            counts_df = disease_counts.rename("Record count").rename_axis("Category").reset_index()
-            st.dataframe(counts_df, use_container_width=True, hide_index=True)
+            st.markdown("### Search a disease")
+            q = st.text_input("Disease name", placeholder="Type part of a disease name")
+            table = disease_counts.rename("Records").rename_axis("Disease").reset_index()
+            if q:
+                table = table[table["Disease"].astype(str).str.contains(q, case=False)]
+            st.dataframe(table, hide_index=True, use_container_width=True)
 
-# =========================================================
-# MODEL INSIGHTS
-# =========================================================
-elif page == "Model Insights":
-    st.markdown("### MODEL EVALUATION")
-    st.title("Model Insights")
-    st.write("Review the classification models and evaluation metrics saved during training.")
-
-    raw_results = bundle.get("model_results", [])
-    results = pd.DataFrame(raw_results)
-
-    if results.empty:
-        st.warning("Model comparison results were not found in the saved bundle.")
+# ------------------------------------------------------------------
+# MODEL COMPARISON
+# ------------------------------------------------------------------
+elif page == "Model comparison":
+    st.markdown(
+        f"""
+        <div class="banner" style="--img:url('{HERO_IMG}')">
+          <h1>Model comparison</h1>
+          <p>All classifiers tried, with hyper-parameter tuning, and the final selected model.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    if results_df.empty:
+        st.warning("Model comparison results were not found in the bundle.")
     else:
-        st.markdown("#### Model comparison")
-        st.dataframe(results.round(4), use_container_width=True, hide_index=True)
+        num_cols = results_df.select_dtypes("number").columns.tolist()
+        st.dataframe(
+            results_df.style.format({c: "{:.4f}" for c in num_cols}).highlight_max(
+                subset=num_cols, color="#c9efe2"
+            ),
+            hide_index=True,
+            use_container_width=True,
+        )
+        if "Model" in results_df.columns and num_cols:
+            metric = st.selectbox("Chart metric", num_cols, index=0)
+            best = results_df[metric].max()
+            chart = (
+                alt.Chart(results_df)
+                .mark_bar(cornerRadiusTopLeft=8, cornerRadiusTopRight=8)
+                .encode(
+                    x=alt.X("Model:N", sort="-y", title=None, axis=alt.Axis(labelAngle=-20)),
+                    y=alt.Y(f"{metric}:Q", scale=alt.Scale(domain=[0, 1.05])),
+                    color=alt.condition(
+                        alt.datum[metric] == best, alt.value("#0f8a6e"), alt.value("#a9c9d6")
+                    ),
+                    tooltip=["Model", metric],
+                )
+                .properties(height=340)
+                .configure_view(strokeWidth=0)
+                .configure_axis(grid=False)
+            )
+            st.altair_chart(chart, use_container_width=True)
 
-        if "Accuracy" in results.columns and "Model" in results.columns:
-            fig, ax = plt.subplots(figsize=(10, 4.5))
-            fig.patch.set_facecolor("#0f1d32")
-            ax.set_facecolor("#172943")
-            palette = ["#987df0", "#29bdc9", "#e6a45f", "#55c69a", "#e27e9c", "#6e9de2"]
-            ax.bar(results["Model"].astype(str), results["Accuracy"], color=palette[:len(results)])
-            ax.set_ylabel("Accuracy", color="white")
-            ax.set_ylim(0, 1.05)
-            ax.tick_params(axis="x", rotation=25, colors="#dce7f5")
-            ax.tick_params(axis="y", colors="#dce7f5")
-            for spine in ax.spines.values():
-                spine.set_color("#385371")
-            plt.tight_layout()
-            st.pyplot(fig, use_container_width=True)
-            plt.close(fig)
+    st.success(f"🏆 Selected final model: {bundle.get('model_name', 'Not specified')}")
 
-    st.markdown("#### Selected final model")
-    st.success(str(bundle.get("model_name", "Not specified")))
+    if best_params:
+        st.markdown("#### Best hyper-parameters")
+        st.json({str(k): (v if isinstance(v, (int, float, str, bool, type(None))) else str(v)) for k, v in best_params.items()})
 
-    metrics = bundle.get("metrics", {})
     if metrics:
-        st.markdown("#### Final evaluation metrics")
-        metric_cols = st.columns(min(4, len(metrics)))
-        for idx, (key, value) in enumerate(metrics.items()):
-            metric_cols[idx % len(metric_cols)].metric(str(key), f"{float(value):.3f}" if isinstance(value, (int, float, np.number)) else str(value))
-    else:
-        st.caption("No final metrics were saved in the model bundle.")
+        st.markdown("#### Final test metrics")
+        cols = st.columns(min(4, len(metrics)))
+        for i, (k, v) in enumerate(metrics.items()):
+            val = f"{float(v):.3f}" if isinstance(v, (int, float, np.number)) else str(v)
+            cols[i % len(cols)].markdown(
+                f'<div class="stat" style="--c:{PALETTE[i % 5]}"><div class="lbl">{k}</div>'
+                f'<div class="num">{val}</div></div>',
+                unsafe_allow_html=True,
+            )
 
-# =========================================================
+# ------------------------------------------------------------------
 # ABOUT
-# =========================================================
-elif page == "About":
-    st.markdown("### PLATFORM INFORMATION")
-    st.title("About")
-    st.write(
-        "This application uses a trained machine-learning classifier to explore "
-        "relationships between symptom features and disease-category labels in a dataset."
+# ------------------------------------------------------------------
+else:
+    st.markdown(
+        f"""
+        <div class="banner" style="--img:url('{DOCTOR_IMG}')">
+          <h1>About the project</h1>
+          <p>Disease Diagnosis: a multi-class classification project built for the final lab evaluation.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
-
-    a, b = st.columns(2)
-    with a:
-        st.markdown(
-            """
-            <div class="feature">
-              <div class="feature-icon">🧠</div>
-              <div class="feature-title">Machine learning</div>
-              <div class="feature-copy">
-                A trained classification model processes selected symptom features
-                and returns a dataset category.
-              </div>
-            </div>
-            """,
-            unsafe_allow_html=True
+    blocks = [
+        ("🎯", "Problem", "Predict the disease from a set of reported symptoms."),
+        ("⚙️", "Pipeline", "Cleaning, EDA, encoding, model training, tuning and evaluation."),
+        ("🧰", "Tech stack", "Python, Pandas, NumPy, Scikit-learn, Altair and Streamlit."),
+    ]
+    for col, (ico, t, d) in zip(st.columns(3, gap="large"), blocks):
+        col.markdown(
+            f'<div class="panel"><div style="font-size:28px">{ico}</div><h4>{t}</h4>'
+            f'<p style="color:#62768a;font-size:13px;line-height:1.7">{d}</p></div>',
+            unsafe_allow_html=True,
         )
-    with b:
-        st.markdown(
-            """
-            <div class="feature">
-              <div class="feature-icon">📈</div>
-              <div class="feature-title">Data exploration</div>
-              <div class="feature-copy">
-                Charts and model comparisons help explore the dataset and
-                understand the model's evaluation results.
-              </div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    st.markdown("#### Technology")
-    st.write("Python · Pandas · NumPy · Scikit-learn · Matplotlib · Streamlit")
-
-    st.markdown("#### Dataset limitations")
+    st.markdown("### Limitations")
     st.write(
-        "The dataset contains repeated records and may not represent real-world clinical populations. "
-        "The model only predicts labels represented in its training data."
+        "The dataset can contain repeated records and may not represent real patients. "
+        "The model only predicts diseases present in its training data."
     )
+    st.markdown(f'<div class="disclaimer">⚠️ {DISCLAIMER}</div>', unsafe_allow_html=True)
 
-    st.info("Model predictions are not diagnoses and must not guide healthcare decisions.")
-
-# =========================================================
-# FOOTER
-# =========================================================
-st.markdown("---")
-st.markdown(
-    '<div class="footer">Disease Diagnosis AI &nbsp;·&nbsp; '
-    'Model predictions are not diagnoses and must not guide healthcare decisions.</div>',
-    unsafe_allow_html=True
-)
+st.markdown(f'<div class="footer">MediPredict · {DISCLAIMER}</div>', unsafe_allow_html=True)
