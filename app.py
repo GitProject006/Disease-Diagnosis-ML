@@ -427,8 +427,7 @@ if page == "Home":
             that match, in a few seconds.</p>
           </div>
           <div class="hero-art">
-            {SVG_HERO}
-            {HERO_PHOTO_HTML}
+            {SVG_HERO}{HERO_PHOTO_HTML}
           </div>
         </div>
         """,
